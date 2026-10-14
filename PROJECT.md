@@ -1,4 +1,4 @@
-# OpenVault ESP32 — estado do projeto
+# OpenVault by wiskton — estado do projeto
 
 Projeto em `~/Documents/GitHub/OpenVault-ESP32`, para M5StickC PLUS2
 (ESP32-PICO-V3-02, 8 MB de flash). Host Pop!_OS 24.04.

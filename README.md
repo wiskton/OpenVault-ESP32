@@ -1,4 +1,4 @@
-# OpenVault ESP32 — carteira Bitcoin
+# OpenVault by wiskton — carteira Bitcoin
 
 Firmware C++ para **M5StickC PLUS2**, com textos grandes e controles físicos.
 Versão 0.2.0: criação/importação BIP39, cofre persistente com PIN, endereços Bitcoin
