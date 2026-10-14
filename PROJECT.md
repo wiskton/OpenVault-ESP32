@@ -53,3 +53,9 @@ Seed/PIN continuam na placa. Nenhum pagamento é preparado ou transmitido pelo p
 exportação JSON watch-only com nome/rede/xpub/caminhos e indicação explícita do
 PIN numérico obrigatório de 8 dígitos. Senha alfanumérica e backup completo para
 arquivo não são recursos suportados; a recuperação permanece pelas palavras.
+
+0.7.0: assistente visível com etapas, navegação de palavras no LCD iniciada no
+painel e formulário web de PIN para criar/trocar/desbloquear, sempre com hold A
+na placa antes de salvar/desbloquear. PIN passa em memória pelo host/USB sem
+cifragem de transporte; seed continua exclusiva da placa. Criação expira em 5min
+sem interação; bloqueio das carteiras salvas permanece 90s. Modelo documentado.

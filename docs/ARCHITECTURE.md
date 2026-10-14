@@ -73,3 +73,13 @@ GET /api/export-wallet exige sessão local e xpub previamente autorizada na plac
 A exportação valida rede, fingerprint e derivação e retorna somente metadados públicos.
 O JSON openvault-watch-only não é backup de recuperação nem contém segredos. O PIN
 continua obrigatório no fluxo original, com status e instruções explícitas no painel.
+
+## Fluxo guiado 0.7
+
+NEXT_WORD e BACKUP_READY permitem navegar o backup pelo painel sem transferir
+palavras. BACKUP_READY exige última palavra e todas visitadas. SET_PIN <8 dígitos>
+só é aceito em PinSet; UNLOCK_PIN <8 dígitos> só em PinUnlock. Ambos entram em
+ConfirmWebPin. Hold A executa persist/finishPin, B cancela e sobrescreve buffers.
+STATUS acrescenta word/words (somente índices). A ponte permite continuação do
+pedido de criação/troca/desbloqueio apenas no flow adequado. Comandos de outras
+operações continuam bloqueados durante o pedido. Estado/erros não contêm PIN.

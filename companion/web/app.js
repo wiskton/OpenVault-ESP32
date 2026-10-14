@@ -43,9 +43,9 @@ async function render(state){
  $('headerWalletName').textContent=identity;
  for(const tag of document.querySelectorAll('[data-wallet-identity]'))tag.textContent='Carteira ativa: '+identity+(state.wallet===null||state.wallet===undefined?'':' · espaço '+(state.wallet+1));
  $('walletHeading').textContent=!state.connected?'Vamos conectar.':state.saved?identity:'Crie sua carteira pelo painel.';
- $('connectionHint').textContent=!state.connected?'Conecte o M5StickC PLUS2 pelo cabo USB-C de dados para começar.':state.saved?'Seu cofre permanece na placa. Use os botões para desbloquear e confirmar cada operação.':'Escolha a rede e clique em Criar carteira abaixo. A placa pedirá sua autorização.';
+ $('connectionHint').textContent=!state.connected?'Conecte o M5StickC PLUS2 pelo cabo USB-C de dados para começar.':state.saved?'Seu cofre permanece na placa. Use Desbloquear no painel e autorize a operação na placa.':'Escolha a rede e clique em Criar carteira abaixo. A placa pedirá sua autorização.';
  $('setupBanner').hidden=state.saved===true;
- const supported=['0.5.0','0.6.0'].includes(state.version);
+ const supported=['0.5.0','0.6.0','0.7.0'].includes(state.version);
  const idle=!state.flow||state.flow==='idle';
  const available=state.connected&&!state.pending&&idle;
  const optionsKey=String(state.wallet)+':'+state.slots+':'+JSON.stringify(state.names);
@@ -61,18 +61,32 @@ async function render(state){
  $('activeWalletLabel').textContent=state.wallet===null?'—':(state.names?.[state.wallet]||String(state.wallet+1));
  if(document.activeElement!==$('walletName')&&!$('walletName').dataset.editing)$('walletName').value=state.names?.[state.wallet]||'';
  if($('walletName').dataset.slot!==String(state.wallet)){$('walletName').dataset.slot=String(state.wallet);delete $('walletName').dataset.editing;$('walletName').value=state.names?.[state.wallet]||'';}
- $('renameWallet').disabled=state.version!=='0.6.0'||!available||!state.saved||!state.unlocked;
+ $('renameWallet').disabled=!['0.6.0','0.7.0'].includes(state.version)||!available||!state.saved||!state.unlocked;
  $('walletName').disabled=$('renameWallet').disabled;
  $('walletNameHelp').textContent=!state.connected?'Conecte a placa para identificar suas carteiras.':!state.saved?'Crie a carteira neste espaço primeiro. Depois, dê um nome a ela aqui.':!state.unlocked?'Desbloqueie esta carteira na visão geral para editar o nome.':state.pending==='rename'?'Confira o novo nome na placa e segure A para salvar.':'Digite um nome, clique em Salvar nome na placa e confirme segurando A. O nome fica salvo no dispositivo.';
- $('pinStatus').textContent=state.saved?'PIN de 8 dígitos já configurado para esta carteira. Desbloqueie para trocar.':'O PIN / senha de 8 dígitos será criado e confirmado na placa durante a criação.';
+ $('pinStatus').textContent=state.saved?'PIN de 8 dígitos já configurado para esta carteira. Desbloqueie para trocar.':'O PIN / senha de 8 dígitos será criado no formulário guiado e autorizado na placa.';
  $('createWallet').disabled=!supported||!available||state.saved!==false;
  $('createNetwork').disabled=$('createWords').disabled=$('createWallet').disabled;
  $('walletControls').hidden=state.saved!==true;
  $('unlockWallet').hidden=!!state.unlocked;
  $('unlockWallet').disabled=!supported||!available;
  for(const id of ['lockWallet','backupWallet','changePin'])$(id).disabled=!supported||!available||!state.unlocked;
- $('walletControlHint').textContent=state.unlocked?'Pronta: escolha receber, exportar ou assinar pelo painel.':'Clique em Desbloquear e digite o PIN somente na placa.';
- const stages={'confirm-create':'Confirme a rede e a quantidade de palavras na placa. Segure A para autorizar a criação.','backup':'Anote as palavras exibidas na placa. B avança; na última palavra, segure A para continuar.','set-pin':'Na placa, defina 8 dígitos: B muda o número e A confirma cada um.','confirm-pin':'Repita o PIN na placa. Aguarde a confirmação Carteira salva.','unlock':'Digite seu PIN na placa: B muda o número e A confirma cada dígito.','rename':'Confira o nome e o número da carteira na placa. Segure A para salvar.','switch':'Confira o número da carteira na placa e segure A para autorizar a troca. A carteira anterior será bloqueada.','review':'Confira todos os destinos, valores e taxa na placa. A assinatura depende da confirmação final.'};
+ $('walletControlHint').textContent=state.unlocked?'Pronta: escolha receber, exportar ou assinar pelo painel.':'Clique em Desbloquear e preencha o PIN no formulário guiado.';
+ const webSupported=state.version==='0.7.0';
+ const setupActive=webSupported&&['confirm-create','backup','set-pin','confirm-pin','unlock','confirm-web-pin'].includes(state.flow);
+ $('setupProgress').hidden=!setupActive;
+ $('backupActions').hidden=state.flow!=='backup';
+ $('backupCounter').textContent='Palavra '+(state.word||0)+' de '+(state.words||0);
+ $('backupReady').disabled=!state.word||state.word!==state.words;
+ $('nextWord').disabled=state.word>0&&state.word===state.words;
+ const inputStage=state.flow==='set-pin'||state.flow==='unlock';
+ $('webPinForm').hidden=!inputStage;
+ $('pinConfirmationRow').hidden=state.flow==='unlock';
+ $('webPinConfirm').required=state.flow==='set-pin';
+ $('setupStepTitle').textContent=state.flow==='backup'?'1. Anote suas palavras':state.flow==='set-pin'?'2. Crie o PIN':state.flow==='unlock'?'Desbloquear carteira':state.flow==='confirm-web-pin'?'Confirme na placa':'Autorize a criação na placa';
+ $('setupStepHelp').textContent=state.flow==='confirm-web-pin'?'O PIN foi recebido. Segure A na placa para autorizar. Aguarde a confirmação de que a carteira foi salva ou desbloqueada.':state.flow==='backup'?'Use Próxima palavra para percorrer as palavras na tela da placa. Na última, clique em Anotei as palavras — definir PIN.':inputStage?'Digite seu PIN abaixo. A operação só será concluída depois da sua autorização na placa.':'Confira a solicitação na placa e segure A para continuar.';
+ if(!inputStage){$('webPin').value='';$('webPinConfirm').value='';}
+ const stages={'confirm-create':'Confirme a rede e a quantidade de palavras na placa. Segure A para autorizar a criação.','backup':'Anote as palavras exibidas na placa. B avança; na última palavra, segure A para continuar.','set-pin':webSupported?'Defina e repita o PIN no formulário acima. Depois autorize na placa.':'Na placa, defina 8 dígitos: B muda o número e A confirma cada um.','confirm-web-pin':'Segure A na placa para autorizar o PIN recebido pelo painel.','confirm-pin':'Repita o PIN na placa. Aguarde a confirmação Carteira salva.','unlock':webSupported?'Preencha o PIN no formulário acima e autorize segurando A na placa.':'Digite seu PIN na placa: B muda o número e A confirma cada dígito.','rename':'Confira o nome e o número da carteira na placa. Segure A para salvar.','switch':'Confira o número da carteira na placa e segure A para autorizar a troca. A carteira anterior será bloqueada.','review':'Confira todos os destinos, valores e taxa na placa. A assinatura depende da confirmação final.'};
  $('flowGuide').hidden=!stages[state.flow];$('flowGuide').textContent=stages[state.flow]||'';
  $('disconnectButton').hidden=!state.connected;
  $('connectButton').textContent=state.connected?'Reconectar dispositivo ↗':'Conectar dispositivo ↗';
@@ -107,11 +121,11 @@ $('walletName').addEventListener('input',()=>{$('walletName').dataset.editing='t
 action('renameWallet',async()=>{await api('rename-wallet',{name:$('walletName').value.trim()});delete $('walletName').dataset.editing;});
 $('walletSelect').addEventListener('change',()=>{choosingWallet=true;});
 action('selectWallet',async()=>{await api('select-wallet',{slot:Number($('walletSelect').value)});choosingWallet=false;});
-action('createWallet',()=>api('create',{network:$('createNetwork').value,words:Number($('createWords').value)}));
-action('unlockWallet',()=>api('unlock',{}));
+action('createWallet',async()=>{await api('create',{network:$('createNetwork').value,words:Number($('createWords').value)});window.scrollTo(0,0);});
+action('unlockWallet',async()=>{await api('unlock',{});window.scrollTo(0,0);});
 action('lockWallet',()=>api('lock',{}));
 action('backupWallet',()=>api('backup',{}));
-action('changePin',()=>api('change-pin',{}));
+action('changePin',async()=>{await api('change-pin',{});window.scrollTo(0,0);});
 action('refreshPorts',refreshPorts);
 action('connectButton',async()=>{await api('connect',{port:$('portSelect').value});notice('Conectando pela USB…');});
 action('disconnectButton',()=>api('disconnect',{}));
@@ -141,3 +155,16 @@ action('signButton',async()=>{
  await api('sign',{psbt,utxos});
 });
 refreshPorts().catch(error=>notice(error.message));refresh();setInterval(refresh,1500);
+
+action('nextWord',()=>api('next-word',{}));
+action('backupReady',()=>api('backup-ready',{}));
+$('webPinForm').addEventListener('submit',async event=>{
+ event.preventDefault();$('pinFormError').textContent='';const unlocking=current.flow==='unlock';
+ try{
+  if(!/^[0-9]{8}$/.test($('webPin').value))throw new Error('Use exatamente 8 números no PIN.');
+  if(!unlocking&&$('webPin').value!==$('webPinConfirm').value)throw new Error('Os PINs não conferem.');
+  $('submitWebPin').disabled=true;
+  await api(unlocking?'unlock-pin':'set-pin',{pin:$('webPin').value,...(unlocking?{}:{confirmation:$('webPinConfirm').value})});
+  notice('PIN enviado. Segure A na placa para autorizar.');
+ }catch(error){$('pinFormError').textContent=error.message;}finally{$('webPin').value='';$('webPinConfirm').value='';$('submitWebPin').disabled=false;await refresh();}
+});

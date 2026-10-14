@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Loopback-only USB bridge. Seed/PIN are never part of the HTTP or serial API."""
+"""Loopback USB bridge. Seed stays on device; web PIN is volatile and physically authorized."""
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 import argparse,base64,json,secrets,threading,time,queue,io,re
@@ -25,7 +25,7 @@ class Bridge:
     def __init__(self,auto=True):
         self.lock=threading.RLock();self.commands=queue.Queue();self.port=None;self.active_port=None
         self.connection=None;self.running=True
-        self.data={'connected':False,'port':None,'saved':None,'unlocked':False,'network':None,'fingerprint':None,'address':None,'xpub':None,'signed':None,'pending':None,'message':'Conecte o dispositivo pela USB.','brightness':100,'version':None,'flow':'idle','wallet':None,'slots':'00000','names':[f'Carteira {i+1}' for i in range(5)]}
+        self.data={'connected':False,'port':None,'saved':None,'unlocked':False,'network':None,'fingerprint':None,'address':None,'xpub':None,'signed':None,'pending':None,'message':'Conecte o dispositivo pela USB.','brightness':100,'version':None,'flow':'idle','wallet':None,'slots':'00000','names':[f'Carteira {i+1}' for i in range(5)],'word':0,'words':0}
         found=ports()
         if auto and len(found)==1:self.port=found[0]['path']
         self.worker=threading.Thread(target=self.loop,daemon=True);self.worker.start()
@@ -43,6 +43,12 @@ class Bridge:
             self.data.update(pending=pending,message='Aguardando confirmacao nos botoes do dispositivo.')
             if pending=='sign':self.data['signed']=None
             self.commands.put(command)
+    def continue_flow(self,command,allowed_flows):
+        with self.lock:
+            if not self.data['connected'] or self.data['flow'] not in allowed_flows:raise ValueError('Esta etapa nao esta disponivel. Confira o progresso no painel.')
+            self.commands.put(command)
+            if command.startswith(('SET_PIN ','UNLOCK_PIN ')):self.data['flow']='confirm-web-pin'
+            self.data['message']='Pedido enviado. Confira a placa para continuar.'
     def line(self,line):
         with self.lock:
             if line.startswith('STATUS '):
@@ -58,6 +64,8 @@ class Bridge:
                 if not saved:self.data.update(fingerprint=None,network=None)
                 if fp:self.data.update(fingerprint=fp,network=parts[3])
                 for part in parts:
+                    if part.startswith('word:'):self.data['word']=int(part.split(':',1)[1])
+                    if part.startswith('words:'):self.data['words']=int(part.split(':',1)[1])
                     if part.startswith('names:'):
                         encoded=part.split(':',1)[1].split(',')
                         if len(encoded)==5:
@@ -101,7 +109,7 @@ class Bridge:
         while not self.commands.empty():
             try:self.commands.get_nowait()
             except queue.Empty:break
-        with self.lock:self.data.update(connected=False,port=None,saved=None,unlocked=False,pending=None,address=None,xpub=None,signed=None,fingerprint=None,network=None,version=None,flow="idle",wallet=None,slots="00000",names=[f"Carteira {i+1}" for i in range(5)])
+        with self.lock:self.data.update(connected=False,port=None,saved=None,unlocked=False,pending=None,address=None,xpub=None,signed=None,fingerprint=None,network=None,version=None,flow="idle",wallet=None,slots="00000",names=[f"Carteira {i+1}" for i in range(5)],word=0,words=0)
     def loop(self):
         pending=bytearray();last_poll=0
         while self.running:
@@ -115,7 +123,7 @@ class Bridge:
                     s.dtr=False;s.rts=False;s.port=port;s.open();self.connection=s;self.active_port=port
                     with self.lock:self.data.update(connected=True,port=port,message='USB conectada. Desbloqueie a carteira na placa.')
                     s.write(b'PING\nSTATUS\n');last_poll=time.monotonic()
-                while not self.commands.empty():self.connection.write((self.commands.get_nowait()+'\n').encode('ascii'))
+                while not self.commands.empty():self.connection.write((self.commands.get_nowait()+'\nSTATUS\n').encode('ascii'))
                 if time.monotonic()-last_poll>=2:self.connection.write(b'STATUS\n');last_poll=time.monotonic()
                 data=self.connection.read(2048)
                 if data:
@@ -185,6 +193,14 @@ class Handler(BaseHTTPRequestHandler):
                 slot=body.get('slot')
                 if type(slot) is not int or not 0<=slot<5:raise ValueError('Escolha uma das cinco carteiras')
                 bridge.send('SELECT '+str(slot),'switch')
+            elif self.path=='/api/next-word':bridge.continue_flow('NEXT_WORD',{'backup'})
+            elif self.path=='/api/backup-ready':bridge.continue_flow('BACKUP_READY',{'backup'})
+            elif self.path=='/api/set-pin' or self.path=='/api/unlock-pin':
+                pin=body.get('pin');unlocking=self.path=='/api/unlock-pin'
+                if not isinstance(pin,str) or not re.fullmatch(r'[0-9]{8}',pin):raise ValueError('O PIN deve ter exatamente 8 numeros')
+                if not unlocking and pin!=body.get('confirmation'):raise ValueError('Os PINs nao conferem')
+                bridge.continue_flow(('UNLOCK_PIN ' if unlocking else 'SET_PIN ')+pin,{'unlock'} if unlocking else {'set-pin'})
+                pin=None;body.clear()
             elif self.path=='/api/rename-wallet':
                 name=body.get('name')
                 if not isinstance(name,str) or not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9 _-]{0,17}',name) or name.endswith(' '):raise ValueError('Use 1 a 18 letras sem acento, numeros, espacos, - ou _')
@@ -227,7 +243,7 @@ class Handler(BaseHTTPRequestHandler):
 
 
 def main():
-    parser=argparse.ArgumentParser(description='Painel OpenVault local; seed e PIN nunca passam pelo navegador.')
+    parser=argparse.ArgumentParser(description='Painel OpenVault local; seed na placa e PIN web autorizado fisicamente.')
     parser.add_argument('--port',type=int,default=8765);parser.add_argument('--no-auto-connect',action='store_true')
     args=parser.parse_args()
     bridge=Bridge(auto=not args.no_auto_connect)

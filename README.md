@@ -1,7 +1,7 @@
 # OpenVault by wiskton — carteira Bitcoin
 
 Firmware C++ para **M5StickC PLUS2**, com textos grandes e controles físicos.
-Versão 0.2.0: criação/importação BIP39, cofre persistente com PIN, endereços Bitcoin
+Versão atual 0.7.0 (fluxo web descrito ao final): criação/importação BIP39, cofre persistente com PIN, endereços Bitcoin
 com QR e assinatura PSBT mediante revisão e confirmação na placa.
 
 O software executa as operações descritas; não é uma hardware wallet auditada.
@@ -65,7 +65,8 @@ No computador, a partir desta pasta:
 Para o xpub, selecione **Exportar xpub** na placa e segure A. A resposta contém
 fingerprint, origem BIP84 e xpub/tpub da conta 0, adequados a uma carteira watch-only.
 A exportação revela dados públicos que permitem acompanhar o histórico da conta.
-Não existe comando USB para ler seed, ler PIN ou desbloquear a carteira.
+Não existe comando USB para ler seed ou PIN salvo. Na versão 0.7, o painel pode
+enviar um PIN para desbloquear, sempre com autorização física.
 
 Prepare a PSBT na sua carteira watch-only. Na placa, desbloqueie e abra **Assinar PSBT**:
 
@@ -167,7 +168,8 @@ salvo, Criar e Importar desaparecem do menu. Ao reiniciar, aparece Desbloquear.
 Substituir a carteira exige primeiro desbloquear e confirmar sua remoção na placa.
 Anote e guarde as palavras: elas são a recuperação se a placa falhar.
 
-Seed e PIN não são enviados ao navegador. O painel escuta somente em loopback,
+A seed não é enviada ao navegador. Na versão 0.7, você pode digitar o PIN no painel
+local; ele passa em memória pelo computador e USB, exigindo autorização física. O painel escuta somente em loopback,
 sem CDN ou servidor externo, e valida Host, origem e token da sessão. Não acompanha
 saldo ou confirmações na blockchain. O CLI e o painel não podem usar a mesma USB
 simultaneamente. Pare com `systemctl --user stop openvault-panel`; reinicie com
@@ -192,7 +194,8 @@ A carteira antiga permanece no espaço 1; a atualização preserva as chaves NVS
 
 Desbloquear, bloquear, ver backup e trocar PIN são iniciados na visão geral.
 Para assinar, basta enviar a PSBT pelo painel: a revisão abre na placa, sem
-selecionar Assinar PSBT no menu. A seed/PIN continuam exclusivamente na placa.
+selecionar Assinar PSBT no menu. A seed continua exclusivamente na placa; o PIN pode ser digitado no formulário
+local da versão 0.7, com autorização física.
 O menu físico permanece como alternativa. Na tela inicial, A abre esse menu.
 
 **Enviar:** a versão atual revisa/assina uma PSBT preparada por outra carteira e
@@ -219,5 +222,27 @@ Para recuperação, guarde as palavras anotadas na criação.
 Cada cofre exige PIN de 8 dígitos criado e repetido na etapa final de criação.
 O site indica se já existe PIN e oferece **Trocar PIN / senha** para carteira
 salva e desbloqueada. Digitação e confirmação são feitas na placa (B muda o dígito,
-A confirma), sem campo de PIN no navegador. O PIN é numérico; senha alfanumérica
+A confirma), ou pelo formulário web guiado da versão 0.7. O PIN é numérico; senha alfanumérica
 não é implementada. O PIN não aparece em nenhuma exportação.
+
+## Configuração guiada e PIN pelo painel — 0.7.0
+
+Esta versão substitui as instruções anteriores que limitavam o PIN aos botões.
+Clique em Criar carteira e autorize na placa. O cartão Configuração guiada aparece
+no alto do painel com a etapa atual. Use Próxima palavra na placa para percorrer
+as palavras no LCD. Na última, clique em Anotei as palavras — definir PIN. Você
+também pode percorrê-las com B e segurar A na última, como alternativa física.
+
+O formulário de PIN aparece nessa etapa: informe 8 números, repita e clique em
+Enviar PIN para autorização. Segure A na placa em SALVAR PIN; aguarde Carteira
+salva. Para desbloquear, clique em Desbloquear, preencha o PIN e autorize com A.
+Trocar PIN usa o mesmo formulário após desbloquear a carteira. A criação expira
+após 5 minutos sem interação; carteiras já salvas continuam bloqueando após 90s.
+
+O PIN agora passa pelo navegador, servidor local e USB **em texto claro no
+transporte**, sem registro pelo aplicativo em arquivo, log ou resposta de estado.
+Os campos são apagados ao enviar e ao mudar de etapa. Use um computador confiável;
+malware local pode capturar o PIN. As palavras continuam somente no LCD. O PIN
+cifra o cofre com o formato anterior; trocar o fluxo não altera as seeds existentes.
+
+Testes da interface guiada: `node tests/test_panel.js`.

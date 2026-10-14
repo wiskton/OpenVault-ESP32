@@ -137,3 +137,28 @@ criar/desbloquear quando necessário. Nome ativo também aparece no cabeçalho,
 cartão e telas Receber/Transações/Dispositivo. node --check e git diff --check
 aprovados; navegador confirmou campo visível e identificação no cabeçalho e
 Dispositivo. Nenhuma alteração de firmware, seed ou cofre nesta melhoria de UI.
+
+## Correção do avanço e formulário de PIN — 0.7.0
+
+O usuário relatou que segurar A após as palavras não abria o PIN. A consulta
+confirmou placa conectada, sem cofre, flow:idle e mensagem de cancelamento/timeout;
+não foi possível observar retroativamente qual condição ignorou o botão físico.
+O fluxo agora pode avançar pelo painel, com contagem pública de palavras e botão
+liberado na última, sem depender do botão físico para abrir a definição do PIN.
+Hold A permanece obrigatório para autorizar a gravação/desbloqueio com PIN web.
+
+- Onze testes HTTP aprovados, incluindo validação de PIN, confirmação divergente,
+  restrição de etapa, continuação de criação pendente e ausência de PIN no estado.
+- Node test_panel.js aprovado: botão só avança na última palavra, formulário de
+  criação/desbloqueio, erro visível, limpeza de campos e espera de autorização.
+- Dois testes de transporte e núcleo C++/Python/OpenSSL aprovados; só vetores
+  públicos no host. node --check, py_compile e git diff --check aprovados.
+- Build final SUCCESS: RAM 60.540 bytes, flash 1.239.489 bytes. Upload SUCCESS com
+  hashes verificados e preservação NVS/partições. A placa foi atualizada ociosa,
+  sem cofre salvo. HTTP/USB confirmou versão 0.7.0, flow:idle, word:0 e nenhum
+  campo seed/PIN no estado. Nenhuma carteira persistente foi criada para teste.
+
+A navegação de palavras no LCD, envio de PIN real e hold A para salvar/desbloquear
+precisam da participação física do usuário. Não ler/fotografar/preencher seu PIN
+ou palavras como parte de QA. A mudança de exposição do PIN ao host está descrita
+em SECURITY.md; a seed continua no dispositivo.

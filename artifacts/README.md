@@ -1,6 +1,6 @@
 # Firmware local
 
-OpenVault-ESP32-v0.6.0.bin é a aplicação atual, com nomes persistentes, exportação de consulta e cinco carteiras independentes.
+OpenVault-ESP32-v0.7.0.bin é a aplicação atual, com configuração guiada e PIN web autorizado na placa.
 Binaries são ignorados pelo Git; SHA256SUMS registra as imagens locais.
 Recompile pelo README. Use scripts/flash.sh para gravar os endereços corretos;
 o binário de aplicação não deve ser instalado isoladamente no endereço zero.

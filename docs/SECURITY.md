@@ -16,7 +16,8 @@ Bluetooth são desligados no boot. Isso não remove fisicamente os rádios.
 Os buffers próprios de entropia, chaves estendidas, PIN e frase de importação são
 sobrescritos ao encerrar seu uso. Isso é uma medida de redução de exposição, não
 uma prova de que não exista cópia transitória em stack, bibliotecas ou hardware.
-Não há canal USB para importar/exportar seed ou PIN; recuperação é feita na tela.
+Não há canal USB para ler seed ou PIN salvo; recuperação é feita na tela. Na versão
+0.7, PIN pode ser fornecido pelo painel local com autorização física (ver seção final).
 
 ## Cofre
 
@@ -100,3 +101,22 @@ nome exige carteira desbloqueada e confirmação física, e não altera seed/PIN
 O arquivo de consulta contém xpub e pode revelar o histórico completo da conta:
 compartilhá-lo tem impacto de privacidade. Não permite gastar nem substituir o
 backup das palavras. Não é exportado nenhum PIN, hash do PIN, blob cifrado ou seed.
+
+## Mudança de modelo solicitada pelo usuário — 0.7.0
+
+O PIN pode ser digitado no painel local para criação, troca e desbloqueio. Isto
+substitui as afirmações de versões anteriores sobre PIN exclusivamente na placa.
+A seed continua sem qualquer API HTTP/serial de leitura. SET_PIN/UNLOCK_PIN só
+são aceitos nas etapas correspondentes e entram em ConfirmWebPin; somente hold A
+salva ou tenta desbloquear. Não há gravação/desbloqueio automático por HTTP.
+A criação exige percorrer todas as palavras no LCD antes de entrar no PIN.
+
+O PIN transita em HTTP loopback e UART sem cifragem de transporte. Host, token e
+origem continuam validados, mas isso não protege contra malware local ou captura
+física da USB. O servidor não grava ou ecoa PIN em logs/arquivos/estado. Python e
+JavaScript não permitem garantir apagamento de todas as cópias em RAM/GC. O
+firmware sobrescreve seu RX e buffers próprios após uso/cancelamento. O cofre
+continua cifrado e autenticado com o PIN de 8 dígitos. A fonte de entropia e as
+palavras não mudam. O assistente nunca deve preencher/ler um PIN real do usuário.
+A janela de criação foi ampliada a 5 minutos sem interação para permitir anotar
+as palavras; carteiras salvas mantêm o bloqueio por inatividade de 90 segundos.

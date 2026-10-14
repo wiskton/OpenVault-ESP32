@@ -4,6 +4,7 @@ spec=importlib.util.spec_from_file_location('web',Path(__file__).resolve().paren
 web=importlib.util.module_from_spec(spec);spec.loader.exec_module(web)
 class FakeBridge:
     def __init__(self):self.calls=[];self.saved=False
+    def continue_flow(self,*args):self.calls.append(args)
     def snapshot(self):return {'connected':True,'address':None,'saved':self.saved}
     def send(self,*args):self.calls.append(args)
 class WebTests(unittest.TestCase):
@@ -57,6 +58,27 @@ class WebTests(unittest.TestCase):
             self.assertEqual(b.snapshot()['wallet'],1);self.assertEqual(b.snapshot()['slots'],'11000')
             for key in ('address','xpub','signed','fingerprint','network'):self.assertIsNone(b.snapshot()[key])
             b.line('WALLET_SELECTED');self.assertFalse(b.snapshot()['unlocked'])
+        finally:b.running=False;b.worker.join(timeout=2)
+    def test_guided_pin_and_backup_routes(self):
+        for value in ['','123','abcdefgh',12345678,'123456789','1234567\n']:
+            self.assertEqual(self.request('/api/set-pin','POST',{'pin':value,'confirmation':value})[0],400)
+        self.assertEqual(self.request('/api/set-pin','POST',{'pin':'42687359','confirmation':'58764291'})[0],400)
+        self.assertEqual(self.request('/api/set-pin','POST',{'pin':'42687359','confirmation':'42687359'})[0],200)
+        self.assertEqual(self.server.bridge.calls[-1],('SET_PIN 42687359',{'set-pin'}))
+        self.assertEqual(self.request('/api/unlock-pin','POST',{'pin':'42687359'})[0],200)
+        self.assertEqual(self.server.bridge.calls[-1],('UNLOCK_PIN 42687359',{'unlock'}))
+        for route,command in [('next-word','NEXT_WORD'),('backup-ready','BACKUP_READY')]:
+            self.assertEqual(self.request('/api/'+route,'POST',{})[0],200)
+            self.assertEqual(self.server.bridge.calls[-1],(command,{'backup'}))
+    def test_continuation_guards_and_no_pin_state(self):
+        b=web.Bridge(auto=False)
+        try:
+            with self.assertRaises(ValueError):b.continue_flow('SET_PIN 42687359',{'set-pin'})
+            b.data.update(connected=True,flow='backup',pending='create')
+            with self.assertRaises(ValueError):b.continue_flow('SET_PIN 42687359',{'set-pin'})
+            b.data['flow']='set-pin';b.continue_flow('SET_PIN 42687359',{'set-pin'})
+            self.assertEqual(b.snapshot()['flow'],'confirm-web-pin');self.assertNotIn('42687359',json.dumps(b.snapshot()))
+            with self.assertRaises(ValueError):b.continue_flow('SET_PIN 58764291',{'set-pin'})
         finally:b.running=False;b.worker.join(timeout=2)
     def test_wallet_names(self):
         for name in ['', ' Name','Name ', 'Nome\nLOCK','<script>','a'*19,'João']:

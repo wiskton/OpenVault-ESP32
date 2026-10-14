@@ -19,7 +19,7 @@ using openvault::clearSecret;
 Wallet wallet;
 Preferences store;
 M5Canvas canvas(&M5.Display);
-enum class Screen {Welcome,Menu,Network,Count,Words,PinSet,PinConfirm,PinUnlock,Letters,Candidates,Address,QR,WaitPSBT,Review,ConfirmSign,ConfirmExport,ConfirmErase,ConfirmBrightness,ConfirmCreate,ConfirmSwitch,ConfirmName,Message,Fatal};
+enum class Screen {Welcome,Menu,Network,Count,Words,PinSet,PinConfirm,PinUnlock,Letters,Candidates,Address,QR,WaitPSBT,Review,ConfirmSign,ConfirmExport,ConfirmErase,ConfirmBrightness,ConfirmCreate,ConfirmSwitch,ConfirmName,ConfirmWebPin,Message,Fatal};
 Screen screen=Screen::Welcome,afterMessage=Screen::Menu;
 constexpr uint16_t bg=0x0842,green=0x47F1,bar=0x126A;
 const char* menus[]={"Criar carteira","Importar seed","Desbloquear","Receber BTC","Assinar PSBT","Ver backup","Exportar xpub","Bloquear","Apagar carteira","Trocar PIN"};
@@ -39,6 +39,7 @@ bool discardRx=false,addressExportPending=false;
 int pendingBrightness=100;
 unsigned activeWallet=0,pendingWallet=0;
 std::string pendingName;
+bool webUnlock=false;
 std::string storageKey(const char* base){return openvault::walletStorageKey(base,activeWallet);}
 std::string availableWallets(){
  std::string slots;
@@ -63,6 +64,7 @@ void loadWallet(){
 const char* alphabet="abcdefghijklmnopqrstuvwxyz";
 
 const char* flow(){
+ if(screen==Screen::ConfirmWebPin)return "confirm-web-pin";
  if(screen==Screen::ConfirmName)return "rename";
  if(screen==Screen::ConfirmSwitch)return "switch";
  if(screen==Screen::ConfirmCreate)return "confirm-create";
@@ -125,6 +127,7 @@ void render(){
  case Screen::ConfirmSign:pageText("CONFIRMAR",{"Todos os destinos","e a taxa conferem?","Segure A: ASSINAR"},"B:cancela");break;
  case Screen::ConfirmExport:pageText("EXPORTAR",{"Exportar xpub USB?","Revela historico","da sua carteira."},"Segure A:autoriza");break;
  case Screen::ConfirmErase:pageText("APAGAR COFRE",{"Seed/PIN serao","removidos. Tem","backup das palavras?"},"Segure A:apaga");break;
+ case Screen::ConfirmWebPin:pageText(webUnlock?"DESBLOQUEAR":"SALVAR PIN",{"Pedido do painel","Carteira "+std::to_string(activeWallet+1),"PIN recebido USB"},"Segure A:autoriza");break;
  case Screen::ConfirmName:pageText("NOME CARTEIRA",{"Carteira "+std::to_string(activeWallet+1),pendingName,"Confirme o nome"},"Segure A:salva");break;
  case Screen::ConfirmSwitch:pageText("TROCAR CARTEIRA",{"Carteira "+std::to_string(pendingWallet+1),walletName(pendingWallet),"Bloqueia a anterior"},"Segure A:autoriza");break;
  case Screen::ConfirmCreate:pageText("CRIAR CARTEIRA",{mainnet?"Bitcoin real":"Bitcoin testnet",std::to_string(wordTarget)+" palavras","Carteira "+std::to_string(activeWallet+1)},"Segure A:autoriza");break;
@@ -141,7 +144,7 @@ void randomBytes(uint8_t* out,size_t len){
 }
 void resetEntry(){clearSecret(pin);clearSecret(firstPin);clearSecret(prefix);clearSecret(phrase);digit=0;letter=0;}
 void cancel(){
- if(creating||screen==Screen::PinUnlock||screen==Screen::Words||screen==Screen::PinSet||screen==Screen::PinConfirm||screen==Screen::ConfirmSwitch||screen==Screen::ConfirmName||addressExportPending||screen==Screen::ConfirmExport||screen==Screen::ConfirmBrightness)Serial.println("CANCELED");
+ if(creating||screen==Screen::PinUnlock||screen==Screen::Words||screen==Screen::PinSet||screen==Screen::PinConfirm||screen==Screen::ConfirmSwitch||screen==Screen::ConfirmName||screen==Screen::ConfirmWebPin||addressExportPending||screen==Screen::ConfirmExport||screen==Screen::ConfirmBrightness)Serial.println("CANCELED");
  addressExportPending=false;
  if(screen==Screen::Review||screen==Screen::ConfirmSign||screen==Screen::WaitPSBT){wallet.cancelReview();Serial.println("CANCELED");}
  if(creating){wallet.lock();creating=false;}
@@ -219,7 +222,7 @@ void shortB(){
  case Screen::Address:if(++page>=((chunks(wallet.address(addressIndex)).size()+1+2)/3)){page=0;if(!addressExportPending){addressIndex=(addressIndex+1)%100000;store.putUInt(storageKey("receive").c_str(),addressIndex);}}break;
  case Screen::QR:screen=Screen::Address;page=0;break;
  case Screen::Review:page=(page+1)%std::max(size_t(1),(reviewLines.size()+2)/3);reviewSeen=std::max(reviewSeen,page);break;
- case Screen::ConfirmSign:case Screen::ConfirmExport:case Screen::ConfirmErase:case Screen::ConfirmBrightness:case Screen::ConfirmCreate:case Screen::ConfirmSwitch:case Screen::ConfirmName:cancel();return;
+ case Screen::ConfirmSign:case Screen::ConfirmExport:case Screen::ConfirmErase:case Screen::ConfirmBrightness:case Screen::ConfirmCreate:case Screen::ConfirmSwitch:case Screen::ConfirmName:case Screen::ConfirmWebPin:cancel();return;
  case Screen::Welcome:case Screen::Message:case Screen::WaitPSBT:++page;break;
  default:break;
  }
@@ -232,6 +235,11 @@ void longA(){
   if(page+1!=pages)return;
   Serial.print("ADDRESS ");Serial.print(wallet.mainnet()?"BTC ":"TEST ");Serial.print(addressIndex);Serial.print(" ");Serial.println(wallet.address(addressIndex).c_str());
   addressExportPending=false;screen=Screen::QR;render();return;
+ }
+ if(screen==Screen::ConfirmWebPin){
+  if(webUnlock){screen=Screen::PinUnlock;finishPin();render();}
+  else persist();
+  return;
  }
  if(screen==Screen::ConfirmName){
   bool ok=store.putString(storageKey("label").c_str(),pendingName.c_str())==pendingName.size();
@@ -253,7 +261,7 @@ void longA(){
  if(screen==Screen::ConfirmBrightness){M5.Display.setBrightness(pendingBrightness);store.putUInt("brightness",pendingBrightness);Serial.println("CONFIG_OK brightness");info("Brilho atualizado.");return;}
 
  if(screen==Screen::Words){
-  if(wordIndex+1!=wallet.wordCount()||wordsSeen+1<wallet.wordCount())return;
+  if(wordIndex+1!=wallet.wordCount()||wordsSeen+1<wallet.wordCount()){Serial.println("ERROR avance_ate_a_ultima_palavra_com_B_ou_no_painel");return;}
   if(creating){clearSecret(firstPin);startPin(Screen::PinSet);}else {screen=Screen::Menu;Serial.println("BACKUP_DONE");render();}return;
  }
  if(screen==Screen::ConfirmExport){Serial.print("XPUB ");Serial.print(wallet.fingerprint().c_str());Serial.print(wallet.mainnet()?" 84h/0h/0h ":" 84h/1h/0h ");Serial.println(wallet.accountXpub().c_str());info("Xpub exportado pela USB. Nenhuma chave privada foi enviada.");return;}
@@ -270,7 +278,22 @@ void command(const std::string& cmd){
  if(cmd=="STATUS"){
   Serial.print("STATUS ");Serial.print(saved?"saved ":"empty ");Serial.print(wallet.ready()?"unlocked":"locked");
   if(wallet.ready()){Serial.print(wallet.mainnet()?" BTC ":" TEST ");Serial.print(wallet.fingerprint().c_str());}
-  Serial.print(" wallet:");Serial.print(activeWallet);Serial.print(" names:");Serial.print(encodedWalletNames().c_str());Serial.print(" slots:");Serial.print(availableWallets().c_str());Serial.print(" flow:");Serial.print(flow());Serial.print(" brightness:");Serial.println(store.getUInt("brightness",100));return;
+  Serial.print(" wallet:");Serial.print(activeWallet);Serial.print(" names:");Serial.print(encodedWalletNames().c_str());Serial.print(" slots:");Serial.print(availableWallets().c_str());Serial.print(" word:");Serial.print(screen==Screen::Words?wordIndex+1:0);Serial.print(" words:");Serial.print(wallet.wordCount());Serial.print(" flow:");Serial.print(flow());Serial.print(" brightness:");Serial.println(store.getUInt("brightness",100));return;
+ }
+ if(cmd=="NEXT_WORD"||cmd=="BACKUP_READY"){
+  if(screen!=Screen::Words){Serial.println("ERROR etapa_de_backup_indisponivel");return;}
+  if(cmd=="NEXT_WORD"){shortB();Serial.println("PENDING backup");return;}
+  if(wordIndex+1!=wallet.wordCount()||wordsSeen+1<wallet.wordCount()){Serial.println("ERROR percorra_todas_as_palavras");return;}
+  longA();Serial.println("PENDING pin");return;
+ }
+ if(cmd.compare(0,8,"SET_PIN ")==0||cmd.compare(0,11,"UNLOCK_PIN ")==0){
+  const bool unlocking=cmd.compare(0,11,"UNLOCK_PIN ")==0;
+  std::string incoming=cmd.substr(unlocking?11:8);
+  bool allowed=unlocking?(saved&&screen==Screen::PinUnlock):(screen==Screen::PinSet&&wallet.ready());
+  bool valid=incoming.size()==8&&std::all_of(incoming.begin(),incoming.end(),[](char c){return c>='0'&&c<='9';});
+  if(!allowed||!valid){clearSecret(incoming);Serial.println("ERROR PIN_ou_etapa_invalida");return;}
+  if(unlocking){clearSecret(pin);pin=incoming;}else{clearSecret(firstPin);firstPin=incoming;}
+  clearSecret(incoming);webUnlock=unlocking;screen=Screen::ConfirmWebPin;page=0;lastTouch=millis();Serial.println("PENDING confirm-pin");render();return;
  }
  const bool safeScreen=screen==Screen::Menu||screen==Screen::Welcome||screen==Screen::Address||screen==Screen::QR||(screen==Screen::Message&&afterMessage==Screen::Menu&&!creating);
  if(cmd.compare(0,5,"NAME ")==0){
@@ -319,7 +342,7 @@ void command(const std::string& cmd){
   int value=std::atoi(text.c_str());if(value<40||value>200){Serial.println("ERROR brilho_40_200");return;}
   pendingBrightness=value;screen=Screen::ConfirmBrightness;page=0;Serial.println("PENDING brightness");render();return;
  }
- if(cmd=="PING"){Serial.println("OPENVAULT 0.6.0");return;}
+ if(cmd=="PING"){Serial.println("OPENVAULT 0.7.0");return;}
  if(cmd.compare(0,5,"SIGN ")==0){
   if((screen!=Screen::WaitPSBT&&!safeScreen)||!saved||!wallet.ready()){Serial.println("ERROR desbloqueie_a_carteira_e_conclua_o_pedido_atual");return;}
   lastTouch=millis();
@@ -335,8 +358,8 @@ void command(const std::string& cmd){
 }
 void serialInput(){
  size_t budget=512;while(Serial.available()&&budget--){char c=char(Serial.read());if(c=='\r')continue;if(c=='\n'){
-  if(discardRx)Serial.println("ERROR mensagem_muito_grande");else command(rx);rx.clear();discardRx=false;
- }else if(!discardRx){if(rx.size()>=24005){rx.clear();discardRx=true;}else rx+=c;}}
+  if(discardRx)Serial.println("ERROR mensagem_muito_grande");else command(rx);clearSecret(rx);discardRx=false;
+ }else if(!discardRx){if(rx.size()>=24005){clearSecret(rx);discardRx=true;}else rx+=c;}}
 }
 }
 void setup(){
@@ -349,7 +372,7 @@ void setup(){
  if(!store.begin("openvault",false)){message="Erro ao abrir armazenamento.";screen=Screen::Fatal;render();return;}
  M5.Display.setBrightness(std::min(uint32_t(200),std::max(uint32_t(40),store.getUInt("brightness",100))));
  activeWallet=std::min(unsigned(openvault::walletSlots-1),unsigned(store.getUInt("active",0)));loadWallet();if(screen==Screen::Fatal){render();return;}
- rx.reserve(1024);lastTouch=millis();render();Serial.println("OPENVAULT 0.6.0 SELFTEST_OK READY");
+ rx.reserve(1024);lastTouch=millis();render();Serial.println("OPENVAULT 0.7.0 SELFTEST_OK READY");
 }
 void loop(){
  M5.update();if(!canDraw||screen==Screen::Fatal){delay(20);return;}
@@ -357,6 +380,6 @@ void loop(){
  if(M5.BtnB.pressedFor(800)&&!heldB){heldB=true;longB();}
  if(M5.BtnA.wasReleased()){if(!heldA)shortA();heldA=false;}
  if(M5.BtnB.wasReleased()){if(!heldB)shortB();heldB=false;}
- if((wallet.ready()||creating||screen==Screen::PinUnlock||screen==Screen::PinSet||screen==Screen::PinConfirm)&&millis()-lastTouch>=90000){wallet.lock();resetEntry();creating=false;addressExportPending=false;Serial.println("LOCKED timeout");info("Bloqueio automatico. Digite o PIN para voltar.");}
+ if((wallet.ready()||creating||screen==Screen::PinUnlock||screen==Screen::PinSet||screen==Screen::PinConfirm||screen==Screen::ConfirmWebPin)&&millis()-lastTouch>=(creating?300000u:90000u)){wallet.lock();resetEntry();creating=false;addressExportPending=false;Serial.println("LOCKED timeout");info("Bloqueio automatico. Digite o PIN para voltar.");}
  serialInput();delay(10);
 }

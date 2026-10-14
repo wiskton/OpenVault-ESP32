@@ -18,4 +18,7 @@ user's persistent namespace. The old terminal simulator is UI-only, not the curr
 0.5 supports five wallets. Never rename legacy slot 0 NVS keys (vault/receive/attempts)
 or erase them during upgrades. Every operation uses the active slot; switching must
 require physical confirmation, lock the key and clear previous public/PSBT UI state.
-Web CREATE starts physical authorization only; seed/PIN must not enter serial/HTTP.
+Web CREATE starts physical authorization only; seed must not enter serial/HTTP.
+User requested web PIN controls in 0.7: PIN may transit authenticated loopback HTTP
+and USB in volatile memory, without logging/storage/echo. Saving/unlocking with a web
+PIN requires a separate physical authorization. Never inspect real user PIN fields.
