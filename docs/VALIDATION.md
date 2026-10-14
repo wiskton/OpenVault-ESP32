@@ -112,3 +112,20 @@ operações físicas do usuário; o assistente não lê nem registra os segredos
 Não foram automatizados os botões nem exibidas/anotadas seeds reais. Criação,
 PIN, desligar/religar com cofres salvos e troca física entre carteiras reais ainda
 precisam de teste humano. Não alegar validação física completa só com boot/host.
+
+## Nomes, exportação e PIN — 0.6.0
+
+- Nove testes HTTP aprovados, incluindo nomes válidos/injeção/tamanho, recebimento
+  dos cinco rótulos, exportação pública sem segredo e rejeição de fingerprint
+  divergente. Dois testes de transporte aprovados; node --check e py_compile passaram.
+- Testes C++/Python/OpenSSL aprovados com a validação de nomes e as políticas de
+  cofre/PSBT anteriores. Somente vetores públicos foram usados no host.
+- Build final aprovado: RAM 60.540 bytes, flash 1.238.009 bytes. Upload SUCCESS com
+  hashes verificados. A placa estava ociosa e sem cofre antes da instalação.
+- Painel confirmou firmware 0.6.0, USB conectada, cinco rótulos recebidos e cinco
+  espaços vazios. Navegador confirmou seletor com nomes e seção Exportar carteira
+  para consulta, sem seed/PIN. Nenhum cofre foi criado para testar no dispositivo.
+
+Salvar nome em cofre real, autorizar exportação de uma carteira real e completar
+PIN continuam exigindo a operação física do usuário. As verificações no host e
+consulta USB não substituem esse teste. Não houve criação nem exportação de seed.

@@ -60,3 +60,16 @@ WALLET_SAVED, WALLET_SELECTED, UNLOCKED, BACKUP_DONE e CANCELED concluem pedidos
 Espaço 0 preserva chaves NVS vault/receive/attempts; espaços 1..4 usam vaultN,
 receiveN e attemptsN. active guarda só o identificador selecionado. Não há migração
 nem apagamento dos cofres anteriores. Uma única Wallet permanece em RAM.
+
+## Nomes e exportação 0.6
+
+NAME <rotulo> inicia ConfirmName somente com carteira salva, desbloqueada e ociosa.
+A aceita o rótulo exibido e grava label/label1..label4, verificando a leitura de volta.
+Nomes ASCII de 1..18 caracteres aceitam letras, números, espaço, - e _, sem espaços
+nas pontas. STATUS inclui names:cinco nomes codificados em hex separados por vírgulas.
+Os rótulos ficam separados dos blobs cifrados e são apagados junto ao cofre selecionado.
+
+GET /api/export-wallet exige sessão local e xpub previamente autorizada na placa.
+A exportação valida rede, fingerprint e derivação e retorna somente metadados públicos.
+O JSON openvault-watch-only não é backup de recuperação nem contém segredos. O PIN
+continua obrigatório no fluxo original, com status e instruções explícitas no painel.

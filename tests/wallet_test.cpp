@@ -10,6 +10,8 @@ int main(int argc,char**argv){
  assert(fresh.size()==2&&fresh[0]==0&&fresh[1]==1);
  assert(locked.size()==1&&locked[0]==2);
  for(auto action:unlocked)assert(action!=0&&action!=1);
+ for(const auto& name:{"Pessoal","Reserva BTC","Viagem-2026","Empresa_2"})assert(validWalletName(name));
+ for(const auto& name:{""," Nome","Nome ","Nome\nLOCK","<script>","abcdefghijklmnopqrs"})assert(!validWalletName(name));
  assert(walletStorageKey("vault",0)=="vault");assert(walletStorageKey("vault",1)=="vault1");assert(walletStorageKey("attempts",4)=="attempts4");
  for(unsigned i=0;i<walletSlots;++i)assert(parseSlot("SELECT "+std::to_string(i))==int(i));
  for(const auto& bad:{"SELECT 5","SELECT -1","SELECT 0 extra","SELECT 00","SELECT 0\nLOCK"})assert(parseSlot(bad)==-1);

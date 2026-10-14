@@ -42,20 +42,25 @@ async function render(state){
  $('walletHeading').textContent=!state.connected?'Vamos conectar.':state.saved?(state.unlocked?'Carteira desbloqueada.':'Sua carteira está salva.'):'Crie sua carteira pelo painel.';
  $('connectionHint').textContent=!state.connected?'Conecte o M5StickC PLUS2 pelo cabo USB-C de dados para começar.':state.saved?'Seu cofre permanece na placa. Use os botões para desbloquear e confirmar cada operação.':'Escolha a rede e clique em Criar carteira abaixo. A placa pedirá sua autorização.';
  $('setupBanner').hidden=state.saved===true;
- const supported=state.version==='0.5.0';
+ const supported=['0.5.0','0.6.0'].includes(state.version);
  const idle=!state.flow||state.flow==='idle';
  const available=state.connected&&!state.pending&&idle;
- const optionsKey=String(state.wallet)+':'+state.slots;
+ const optionsKey=String(state.wallet)+':'+state.slots+':'+JSON.stringify(state.names);
  if(optionsKey!==walletOptionsKey){
  const selectedWallet=$('walletSelect').value;
  $('walletSelect').replaceChildren();
- for(let slot=0;slot<5;slot++)$('walletSelect').add(new Option('Carteira '+(slot+1)+(state.slots?.[slot]==='1'?' · salva':' · vazia')+(slot===state.wallet?' · ativa':''),String(slot)));
+ for(let slot=0;slot<5;slot++)$('walletSelect').add(new Option((state.names?.[slot]||'Carteira '+(slot+1))+' ['+(slot+1)+']'+(state.slots?.[slot]==='1'?' · salva':' · vazia')+(slot===state.wallet?' · ativa':''),String(slot)));
  if(choosingWallet)$('walletSelect').value=selectedWallet;
  else if(state.wallet!==null)$('walletSelect').value=String(state.wallet);
  walletOptionsKey=optionsKey;
  }
  $('selectWallet').disabled=!supported||!available;
- $('activeWalletLabel').textContent=state.wallet===null?'—':String(state.wallet+1);
+ $('activeWalletLabel').textContent=state.wallet===null?'—':(state.names?.[state.wallet]||String(state.wallet+1));
+ if(document.activeElement!==$('walletName')&&!$('walletName').dataset.editing)$('walletName').value=state.names?.[state.wallet]||'';
+ if($('walletName').dataset.slot!==String(state.wallet)){$('walletName').dataset.slot=String(state.wallet);delete $('walletName').dataset.editing;$('walletName').value=state.names?.[state.wallet]||'';}
+ $('renameWallet').disabled=state.version!=='0.6.0'||!available||!state.saved||!state.unlocked;
+ $('walletName').disabled=$('renameWallet').disabled;
+ $('pinStatus').textContent=state.saved?'PIN de 8 dígitos já configurado para esta carteira. Desbloqueie para trocar.':'O PIN / senha de 8 dígitos será criado e confirmado na placa durante a criação.';
  $('createWallet').disabled=!supported||!available||state.saved!==false;
  $('createNetwork').disabled=$('createWords').disabled=$('createWallet').disabled;
  $('walletControls').hidden=state.saved!==true;
@@ -63,7 +68,7 @@ async function render(state){
  $('unlockWallet').disabled=!supported||!available;
  for(const id of ['lockWallet','backupWallet','changePin'])$(id).disabled=!supported||!available||!state.unlocked;
  $('walletControlHint').textContent=state.unlocked?'Pronta: escolha receber, exportar ou assinar pelo painel.':'Clique em Desbloquear e digite o PIN somente na placa.';
- const stages={'confirm-create':'Confirme a rede e a quantidade de palavras na placa. Segure A para autorizar a criação.','backup':'Anote as palavras exibidas na placa. B avança; na última palavra, segure A para continuar.','set-pin':'Na placa, defina 8 dígitos: B muda o número e A confirma cada um.','confirm-pin':'Repita o PIN na placa. Aguarde a confirmação Carteira salva.','unlock':'Digite seu PIN na placa: B muda o número e A confirma cada dígito.','switch':'Confira o número da carteira na placa e segure A para autorizar a troca. A carteira anterior será bloqueada.','review':'Confira todos os destinos, valores e taxa na placa. A assinatura depende da confirmação final.'};
+ const stages={'confirm-create':'Confirme a rede e a quantidade de palavras na placa. Segure A para autorizar a criação.','backup':'Anote as palavras exibidas na placa. B avança; na última palavra, segure A para continuar.','set-pin':'Na placa, defina 8 dígitos: B muda o número e A confirma cada um.','confirm-pin':'Repita o PIN na placa. Aguarde a confirmação Carteira salva.','unlock':'Digite seu PIN na placa: B muda o número e A confirma cada dígito.','rename':'Confira o nome e o número da carteira na placa. Segure A para salvar.','switch':'Confira o número da carteira na placa e segure A para autorizar a troca. A carteira anterior será bloqueada.','review':'Confira todos os destinos, valores e taxa na placa. A assinatura depende da confirmação final.'};
  $('flowGuide').hidden=!stages[state.flow];$('flowGuide').textContent=stages[state.flow]||'';
  $('disconnectButton').hidden=!state.connected;
  $('connectButton').textContent=state.connected?'Reconectar dispositivo ↗':'Conectar dispositivo ↗';
@@ -94,6 +99,8 @@ async function refresh(){
  try{await render(await api('state'));}catch(error){notice(error.message);}finally{polling=false;}
 }
 function action(id,handler){$(id).addEventListener('click',async()=>{try{await handler();await refresh();}catch(error){notice(error.message);}});}
+$('walletName').addEventListener('input',()=>{$('walletName').dataset.editing='true';});
+action('renameWallet',async()=>{await api('rename-wallet',{name:$('walletName').value.trim()});delete $('walletName').dataset.editing;});
 $('walletSelect').addEventListener('change',()=>{choosingWallet=true;});
 action('selectWallet',async()=>{await api('select-wallet',{slot:Number($('walletSelect').value)});choosingWallet=false;});
 action('createWallet',()=>api('create',{network:$('createNetwork').value,words:Number($('createWords').value)}));
@@ -113,7 +120,7 @@ action('copyAddress',async()=>{if(current.address){await navigator.clipboard.wri
 function download(name,text,type='text/plain'){
  const url=URL.createObjectURL(new Blob([text],{type}));const a=document.createElement('a');a.href=url;a.download=name;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
 }
-action('downloadXpub',async()=>{if(current.xpub)download('openvault-watch-only.json',JSON.stringify(current.xpub,null,2),'application/json');});
+action('downloadXpub',async()=>{const exported=await api('export-wallet');download('openvault-carteira-'+exported.wallet_slot+'-consulta.json',JSON.stringify(exported,null,2),'application/json');});
 action('downloadSigned',async()=>{if(current.signed)download('openvault-signed.psbt',current.signed+'\n');});
 $('psbtFile').addEventListener('change',()=>{$('psbtFileName').textContent=$('psbtFile').files[0]?.name||'Escolher arquivo .psbt';});
 function asBase64(bytes){let binary='';for(const byte of bytes)binary+=String.fromCharCode(byte);return btoa(binary);}

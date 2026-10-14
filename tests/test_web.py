@@ -58,6 +58,29 @@ class WebTests(unittest.TestCase):
             for key in ('address','xpub','signed','fingerprint','network'):self.assertIsNone(b.snapshot()[key])
             b.line('WALLET_SELECTED');self.assertFalse(b.snapshot()['unlocked'])
         finally:b.running=False;b.worker.join(timeout=2)
+    def test_wallet_names(self):
+        for name in ['', ' Name','Name ', 'Nome\nLOCK','<script>','a'*19,'João']:
+            self.assertEqual(self.request('/api/rename-wallet','POST',{'name':name})[0],400)
+        self.assertEqual(self.request('/api/rename-wallet','POST',{'name':'Reserva BTC'})[0],200)
+        self.assertEqual(self.server.bridge.calls[-1],('NAME Reserva BTC','rename'))
+        b=web.Bridge(auto=False)
+        try:
+            names=['Pessoal','Reserva BTC','Empresa','Viagem','Familia']
+            encoded=','.join(name.encode().hex() for name in names)
+            b.line('STATUS saved locked wallet:1 slots:11000 names:'+encoded+' flow:idle brightness:100')
+            self.assertEqual(b.snapshot()['names'],names)
+            b.reset_connection();self.assertEqual(b.snapshot()['names'][1],'Carteira 2')
+        finally:b.running=False;b.worker.join(timeout=2)
+    def test_watch_only_export(self):
+        self.assertEqual(self.request('/api/export-wallet')[0],400)
+        state={'saved':True,'wallet':1,'network':'BTC','fingerprint':'73c5da0a','names':['Pessoal','Reserva BTC','C3','C4','C5'],'xpub':{'fingerprint':'73c5da0a','origin':'84h/0h/0h','value':'xpub-public-test-fixture'}}
+        data=web.public_wallet_export(state)
+        self.assertEqual(data['name'],'Reserva BTC');self.assertEqual(data['wallet_slot'],2)
+        self.assertFalse(data['contains_private_keys']);self.assertFalse(data['can_sign']);self.assertFalse(data['recovery_backup'])
+        self.assertFalse(any(key in data for key in ('seed','pin','mnemonic','entropy','private_key')))
+        self.assertIn('/0/*)',data['receive_descriptor']);self.assertIn('/1/*)',data['change_descriptor'])
+        state['fingerprint']='different'
+        with self.assertRaises(ValueError):web.public_wallet_export(state)
     def test_setup_progress_contains_no_secrets(self):
         b=web.Bridge(auto=False)
         try:

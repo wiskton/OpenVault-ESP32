@@ -48,3 +48,8 @@ Versão 0.5.0: criação iniciada pelo painel com autorização física, desbloq
 bloqueio, backup e troca de PIN iniciados pela web. PSBT abre revisão diretamente.
 Cinco espaços de carteira independentes; seleção física bloqueia a anterior.
 Seed/PIN continuam na placa. Nenhum pagamento é preparado ou transmitido pelo painel.
+
+0.6.0: nomes de 18 caracteres persistentes por carteira com confirmação física,
+exportação JSON watch-only com nome/rede/xpub/caminhos e indicação explícita do
+PIN numérico obrigatório de 8 dígitos. Senha alfanumérica e backup completo para
+arquivo não são recursos suportados; a recuperação permanece pelas palavras.

@@ -91,3 +91,12 @@ por uma operação em andamento. Cada espaço tem blob e contador de tentativas
 independentes. O espaço original usa as mesmas chaves persistentes da versão 0.3.
 A API continua sem rota que aceite ou revele seed/PIN. Backup iniciado no painel
 é exibição das palavras no LCD, não exportação de segredo ao computador.
+
+## Rótulos e exportação pública 0.6
+
+Os nomes são metadados em texto claro, não autenticados pelo MAC do cofre. Não usar
+um nome como prova de identidade; conferir número, fingerprint e endereço. Alterar
+nome exige carteira desbloqueada e confirmação física, e não altera seed/PIN/rede.
+O arquivo de consulta contém xpub e pode revelar o histórico completo da conta:
+compartilhá-lo tem impacto de privacidade. Não permite gastar nem substituir o
+backup das palavras. Não é exportado nenhum PIN, hash do PIN, blob cifrado ou seed.

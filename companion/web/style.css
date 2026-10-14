@@ -5,3 +5,5 @@
 .setup-panel,.wallet-controls{margin-top:28px}.setup-controls{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin:22px 0}.setup-controls select{width:100%}.wallet-controls .button-row{flex-wrap:wrap}.flow-guide{margin-top:18px;font-size:17px;line-height:1.7}@media(max-width:600px){.setup-controls{grid-template-columns:1fr}.wallet-controls .button{width:100%}}
 
 .wallet-selector{margin-bottom:26px;display:grid;grid-template-columns:1fr 1fr;gap:16px}.wallet-selector .muted{grid-column:1/-1;margin:0}.wallet-selector select{width:100%;margin-bottom:12px}@media(max-width:650px){.wallet-selector{grid-template-columns:1fr}}
+
+.wallet-name-form{display:grid;gap:10px;margin:20px 0}.wallet-name-form input{width:100%;max-width:420px;padding:13px 15px;border:1px solid #c9d7cf;border-radius:8px;font:inherit;background:#fff;color:#18372b}.wallet-name-form small{color:#617167;font-size:14px}.wallet-name-form button{justify-self:start}

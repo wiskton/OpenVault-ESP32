@@ -199,3 +199,25 @@ O menu físico permanece como alternativa. Na tela inicial, A abre esse menu.
 permite baixá-la; não prepara pagamentos a partir de saldo nem faz broadcast.
 Não há consulta de saldo/histórico. O endereço confirmado serve para recebimento
 na rede escolhida. Cada carteira deve ser desbloqueada antes de receber/assinar.
+
+## Nome, exportação e PIN — 0.6.0
+
+Na visão geral, selecione e desbloqueie a carteira. Em **Nome da carteira ativa**,
+preencha até 18 caracteres (letras sem acento, números, espaço, hífen ou sublinhado),
+clique em **Salvar nome na placa** e confirme segurando A. O nome persiste na NVS
+separado por carteira e aparece no seletor, mesmo após reiniciar o computador.
+Ele é apenas um rótulo: confira também número, fingerprint e endereço na placa.
+
+Em Dispositivo, use **Autorizar exportação na placa**, confirme segurando A e
+clique em **Baixar carteira para consulta (.json)**. O arquivo inclui nome, rede,
+xpub, fingerprint, derivação BIP84, descritores de recebimento/troco e endereço
+confirmado, se existir. Os descritores são sem checksum. O formato JSON é próprio
+do OpenVault, não um formato de importação universal. A exportação não guarda
+seed/PIN/chaves privadas, não assina e não recupera os fundos se a placa for perdida.
+Para recuperação, guarde as palavras anotadas na criação.
+
+Cada cofre exige PIN de 8 dígitos criado e repetido na etapa final de criação.
+O site indica se já existe PIN e oferece **Trocar PIN / senha** para carteira
+salva e desbloqueada. Digitação e confirmação são feitas na placa (B muda o dígito,
+A confirma), sem campo de PIN no navegador. O PIN é numérico; senha alfanumérica
+não é implementada. O PIN não aparece em nenhuma exportação.

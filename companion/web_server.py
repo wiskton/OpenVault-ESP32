@@ -2,7 +2,7 @@
 """Loopback-only USB bridge. Seed/PIN are never part of the HTTP or serial API."""
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-import argparse,base64,json,secrets,threading,time,queue,io
+import argparse,base64,json,secrets,threading,time,queue,io,re
 import serial
 from serial.tools import list_ports
 
@@ -12,11 +12,20 @@ TOKEN=secrets.token_hex(32)
 def ports():
     return [{'path':p.device,'label':p.description} for p in list_ports.comports() if p.vid==0x1a86 and ('ttyACM' in p.device or 'ttyUSB' in p.device or p.device.startswith('COM'))]
 
+def public_wallet_export(state):
+    xpub=state.get('xpub');slot=state.get('wallet');network=state.get('network')
+    if not state.get('saved') or not xpub or type(slot) is not int or not 0<=slot<5:raise ValueError('Autorize primeiro a exportacao da xpub na placa')
+    expected='84h/0h/0h' if network=='BTC' else '84h/1h/0h'
+    if network not in ('BTC','TEST') or xpub['origin']!=expected or xpub['fingerprint']!=state.get('fingerprint'):raise ValueError('Dados publicos inconsistentes; exporte novamente')
+    if not xpub['value'].startswith('xpub' if network=='BTC' else 'tpub'):raise ValueError('Rede da chave publica divergente')
+    names=state.get('names') or [f'Carteira {i+1}' for i in range(5)]
+    return {'format':'openvault-watch-only','version':1,'name':names[slot],'wallet_slot':slot+1,'network':'bitcoin' if network=='BTC' else 'testnet','fingerprint':xpub['fingerprint'],'derivation':'m/'+expected,'xpub':xpub['value'],'address_type':'p2wpkh','receive_descriptor':f"wpkh([{xpub['fingerprint']}/{expected}]{xpub['value']}/0/*)",'change_descriptor':f"wpkh([{xpub['fingerprint']}/{expected}]{xpub['value']}/1/*)",'confirmed_address':state.get('address'),'can_sign':False,'contains_private_keys':False,'recovery_backup':False}
+
 class Bridge:
     def __init__(self,auto=True):
         self.lock=threading.RLock();self.commands=queue.Queue();self.port=None;self.active_port=None
         self.connection=None;self.running=True
-        self.data={'connected':False,'port':None,'saved':None,'unlocked':False,'network':None,'fingerprint':None,'address':None,'xpub':None,'signed':None,'pending':None,'message':'Conecte o dispositivo pela USB.','brightness':100,'version':None,'flow':'idle','wallet':None,'slots':'00000'}
+        self.data={'connected':False,'port':None,'saved':None,'unlocked':False,'network':None,'fingerprint':None,'address':None,'xpub':None,'signed':None,'pending':None,'message':'Conecte o dispositivo pela USB.','brightness':100,'version':None,'flow':'idle','wallet':None,'slots':'00000','names':[f'Carteira {i+1}' for i in range(5)]}
         found=ports()
         if auto and len(found)==1:self.port=found[0]['path']
         self.worker=threading.Thread(target=self.loop,daemon=True);self.worker.start()
@@ -42,11 +51,18 @@ class Bridge:
                 if (self.data['fingerprint'] and fp and fp!=self.data['fingerprint']) or (self.data['saved'] and not saved):
                     self.data.update(address=None,xpub=None,signed=None)
                 new_wallet=next((int(part[7:]) for part in parts if part.startswith('wallet:')),self.data['wallet'])
+                first_status=self.data['saved'] is None or new_wallet!=self.data['wallet']
                 if new_wallet!=self.data['wallet']:self.data.update(address=None,xpub=None,signed=None,fingerprint=None,network=None)
                 self.data.update(saved=saved,unlocked=unlocked,wallet=new_wallet)
+                if first_status and not self.data['pending']:self.data['message']='Carteira vazia. Clique em Criar carteira no painel.' if not saved else ('Carteira pronta. Escolha uma operacao no painel.' if unlocked else 'Carteira salva. Clique em Desbloquear no painel.')
                 if not saved:self.data.update(fingerprint=None,network=None)
                 if fp:self.data.update(fingerprint=fp,network=parts[3])
                 for part in parts:
+                    if part.startswith('names:'):
+                        encoded=part.split(':',1)[1].split(',')
+                        if len(encoded)==5:
+                            labels=[bytes.fromhex(item).decode('ascii') for item in encoded]
+                            if all(re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9 _-]{0,17}',item) for item in labels):self.data['names']=labels
                     if part.startswith('slots:'):self.data['slots']=part.split(':',1)[1]
                     if part.startswith('flow:'):self.data['flow']=part.split(':',1)[1]
                     if part.startswith('brightness:'):
@@ -85,7 +101,7 @@ class Bridge:
         while not self.commands.empty():
             try:self.commands.get_nowait()
             except queue.Empty:break
-        with self.lock:self.data.update(connected=False,port=None,saved=None,unlocked=False,pending=None,address=None,xpub=None,signed=None,fingerprint=None,network=None,version=None,flow="idle",wallet=None,slots="00000")
+        with self.lock:self.data.update(connected=False,port=None,saved=None,unlocked=False,pending=None,address=None,xpub=None,signed=None,fingerprint=None,network=None,version=None,flow="idle",wallet=None,slots="00000",names=[f"Carteira {i+1}" for i in range(5)])
     def loop(self):
         pending=bytearray();last_poll=0
         while self.running:
@@ -114,7 +130,7 @@ class Bridge:
                 time.sleep(1)
 
 class Handler(BaseHTTPRequestHandler):
-    server_version='OpenVaultLocal/0.3'
+    server_version='OpenVaultLocal/0.6'
     def log_message(self,fmt,*args):pass
     def allowed_origin(self):
         host=self.headers.get('Host','')
@@ -136,6 +152,9 @@ class Handler(BaseHTTPRequestHandler):
         if self.path.startswith('/api/'):
             if not self.authorized():return self.reply(403,{'error':'Sessao local invalida'})
             if self.path=='/api/state':return self.reply(200,self.server.bridge.snapshot())
+            if self.path=='/api/export-wallet':
+                try:return self.reply(200,public_wallet_export(self.server.bridge.snapshot()))
+                except ValueError as exc:return self.reply(400,{'error':str(exc)})
             if self.path=='/api/ports':return self.reply(200,ports())
             if self.path=='/api/qr':
                 address=self.server.bridge.snapshot().get('address')
@@ -166,6 +185,10 @@ class Handler(BaseHTTPRequestHandler):
                 slot=body.get('slot')
                 if type(slot) is not int or not 0<=slot<5:raise ValueError('Escolha uma das cinco carteiras')
                 bridge.send('SELECT '+str(slot),'switch')
+            elif self.path=='/api/rename-wallet':
+                name=body.get('name')
+                if not isinstance(name,str) or not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9 _-]{0,17}',name) or name.endswith(' '):raise ValueError('Use 1 a 18 letras sem acento, numeros, espacos, - ou _')
+                bridge.send('NAME '+name,'rename')
             elif self.path=='/api/create':
                 network=body.get('network');words=body.get('words')
                 if network not in ('BTC','TEST') or type(words) is not int or words not in (12,24):raise ValueError('Escolha Bitcoin/testnet e 12 ou 24 palavras')
