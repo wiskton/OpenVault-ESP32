@@ -14,3 +14,8 @@ Do not commit toolchains, .deps, virtualenvs, binaries, seeds, PINs or device du
 Never enable irreversible eFuses as a routine build step. Firmware installation must
 preserve the user's cofre and original backup; never create a known/test wallet in the
 user's persistent namespace. The old terminal simulator is UI-only, not the current wallet.
+
+0.5 supports five wallets. Never rename legacy slot 0 NVS keys (vault/receive/attempts)
+or erase them during upgrades. Every operation uses the active slot; switching must
+require physical confirmation, lock the key and clear previous public/PSBT UI state.
+Web CREATE starts physical authorization only; seed/PIN must not enter serial/HTTP.

@@ -87,3 +87,28 @@ Os relatos acima descrevem marcos históricos. O firmware atual inclui carteira 
 A persistência do formato cifrado foi exercitada no host. Criar uma seed real,
 confirmar PIN, desligar/religar a placa e conferir a recuperação continuam sendo
 operações físicas do usuário; o assistente não lê nem registra os segredos.
+
+## Painel e cinco carteiras — 0.5.0
+
+- Sete testes HTTP aprovados: autorização, validação, criação em espaço vazio,
+  seleção 0..4, progresso público e limpeza do cache de outra carteira. Dois
+  testes do companion aprovados. JavaScript passou em node --check.
+- Testes C++/Python/OpenSSL aprovados novamente, incluindo criação/comandos
+  estritos, preservação do nome NVS do espaço 0, nomes distintos dos cinco espaços,
+  dois cofres com seeds/PINs diferentes, rejeição de PIN cruzado e restauração
+  independente. A comparação signed/unsigned detectada por -Werror foi corrigida.
+- Build final aprovado: RAM 60.516 bytes, flash 1.236.009 bytes. Upload final
+  terminou SUCCESS com hashes verificados, sem apagamento NVS ou alteração de
+  partições. A imagem instalada final está em artifacts/OpenVault-ESP32-v0.5.0.bin
+  (ignorada no Git), digest em artifacts/SHA256SUMS.
+- Boot 0.5 observado com SELFTEST_OK READY; log local privado/ignorado. Após a
+  sincronização final, o painel confirmou USB, firmware 0.5.0, wallet:0,
+  slots:00000, flow:idle. Não havia cofre salvo e nenhum foi gerado para teste.
+- Nova aba exibiu os cinco espaços e formulário de criação com rede/12 ou 24
+  palavras, conectada à placa. A aba antiga ficou na página de erro durante a
+  parada temporária do serviço; nova aba confirmou o painel atualizado. Captura
+  de imagem indisponível nesta sessão; não houve verificação visual de pixels.
+
+Não foram automatizados os botões nem exibidas/anotadas seeds reais. Criação,
+PIN, desligar/religar com cofres salvos e troca física entre carteiras reais ainda
+precisam de teste humano. Não alegar validação física completa só com boot/host.

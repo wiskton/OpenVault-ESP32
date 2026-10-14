@@ -1,7 +1,7 @@
 'use strict';
 const $=id=>document.getElementById(id);
 const token=document.querySelector('meta[name="openvault-token"]').content;
-let current={},qrAddress='',qrUrl='',polling=false;
+let current={},qrAddress='',qrUrl='',polling=false,choosingWallet=false,walletOptionsKey="";
 function notice(text){$('statusText').textContent=text;}
 async function api(path,data){
  const options={headers:{'X-OpenVault-Token':token},cache:'no-store'};
@@ -39,9 +39,32 @@ async function render(state){
  current=state;
  $('usbBadge').textContent=state.connected?'● USB conectada':'USB desconectada';$('usbBadge').classList.toggle('connected',state.connected);
  $('walletStatePill').textContent=!state.connected?'Aguardando USB':state.saved?(state.unlocked?'Desbloqueada':'Bloqueada'):'Sem cofre salvo';
- $('walletHeading').textContent=!state.connected?'Vamos conectar.':state.saved?(state.unlocked?'Carteira desbloqueada.':'Sua carteira está salva.'):'Crie sua carteira na placa.';
- $('connectionHint').textContent=!state.connected?'Conecte o M5StickC PLUS2 pelo cabo USB-C de dados para começar.':state.saved?'Seu cofre permanece na placa. Use os botões para desbloquear e confirmar cada operação.':'Selecione Criar carteira no aparelho. Anote as palavras e defina o PIN para salvar o cofre.';
+ $('walletHeading').textContent=!state.connected?'Vamos conectar.':state.saved?(state.unlocked?'Carteira desbloqueada.':'Sua carteira está salva.'):'Crie sua carteira pelo painel.';
+ $('connectionHint').textContent=!state.connected?'Conecte o M5StickC PLUS2 pelo cabo USB-C de dados para começar.':state.saved?'Seu cofre permanece na placa. Use os botões para desbloquear e confirmar cada operação.':'Escolha a rede e clique em Criar carteira abaixo. A placa pedirá sua autorização.';
  $('setupBanner').hidden=state.saved===true;
+ const supported=state.version==='0.5.0';
+ const idle=!state.flow||state.flow==='idle';
+ const available=state.connected&&!state.pending&&idle;
+ const optionsKey=String(state.wallet)+':'+state.slots;
+ if(optionsKey!==walletOptionsKey){
+ const selectedWallet=$('walletSelect').value;
+ $('walletSelect').replaceChildren();
+ for(let slot=0;slot<5;slot++)$('walletSelect').add(new Option('Carteira '+(slot+1)+(state.slots?.[slot]==='1'?' · salva':' · vazia')+(slot===state.wallet?' · ativa':''),String(slot)));
+ if(choosingWallet)$('walletSelect').value=selectedWallet;
+ else if(state.wallet!==null)$('walletSelect').value=String(state.wallet);
+ walletOptionsKey=optionsKey;
+ }
+ $('selectWallet').disabled=!supported||!available;
+ $('activeWalletLabel').textContent=state.wallet===null?'—':String(state.wallet+1);
+ $('createWallet').disabled=!supported||!available||state.saved!==false;
+ $('createNetwork').disabled=$('createWords').disabled=$('createWallet').disabled;
+ $('walletControls').hidden=state.saved!==true;
+ $('unlockWallet').hidden=!!state.unlocked;
+ $('unlockWallet').disabled=!supported||!available;
+ for(const id of ['lockWallet','backupWallet','changePin'])$(id).disabled=!supported||!available||!state.unlocked;
+ $('walletControlHint').textContent=state.unlocked?'Pronta: escolha receber, exportar ou assinar pelo painel.':'Clique em Desbloquear e digite o PIN somente na placa.';
+ const stages={'confirm-create':'Confirme a rede e a quantidade de palavras na placa. Segure A para autorizar a criação.','backup':'Anote as palavras exibidas na placa. B avança; na última palavra, segure A para continuar.','set-pin':'Na placa, defina 8 dígitos: B muda o número e A confirma cada um.','confirm-pin':'Repita o PIN na placa. Aguarde a confirmação Carteira salva.','unlock':'Digite seu PIN na placa: B muda o número e A confirma cada dígito.','switch':'Confira o número da carteira na placa e segure A para autorizar a troca. A carteira anterior será bloqueada.','review':'Confira todos os destinos, valores e taxa na placa. A assinatura depende da confirmação final.'};
+ $('flowGuide').hidden=!stages[state.flow];$('flowGuide').textContent=stages[state.flow]||'';
  $('disconnectButton').hidden=!state.connected;
  $('connectButton').textContent=state.connected?'Reconectar dispositivo ↗':'Conectar dispositivo ↗';
  $('detailConnection').textContent=state.connected?(state.port||'USB conectada'):'Desconectado';
@@ -49,11 +72,11 @@ async function render(state){
  $('detailSaved').textContent=state.saved===null?'Aguardando conexão':state.saved?'Salvo localmente no dispositivo':'Ainda não criado';
  $('detailNetwork').textContent=networkName(state.network);
  if(document.activeElement!==$('brightness')){$('brightness').value=state.brightness||100;$('brightnessValue').textContent=$('brightness').value+' / 255';}
- const canUse=state.connected&&state.saved&&state.unlocked&&!state.pending;
+ const canUse=state.connected&&state.saved&&state.unlocked&&!state.pending&&idle;
  for(const id of ['requestAddress','requestXpub','overviewXpub','signButton'])$(id).disabled=!canUse;
  $('brightnessButton').disabled=!state.connected||!!state.pending;
  if(state.address){
-  $('addressValue').textContent=state.address.value;$('addressIndex').textContent='Endereço #'+state.address.index+' · derivado e confirmado no dispositivo';
+  $('addressValue').textContent=state.address.value;$('addressIndex').textContent='Carteira '+(state.wallet+1)+' · endereço #'+state.address.index+' · derivado e confirmado no dispositivo';
   $('addressNetwork').textContent=networkName(state.address.network);$('addressNetwork').hidden=false;
   $('copyAddress').disabled=false;
   await qr(state.address.value);$('qrPlaceholder').hidden=true;$('qrImage').hidden=false;
@@ -71,6 +94,13 @@ async function refresh(){
  try{await render(await api('state'));}catch(error){notice(error.message);}finally{polling=false;}
 }
 function action(id,handler){$(id).addEventListener('click',async()=>{try{await handler();await refresh();}catch(error){notice(error.message);}});}
+$('walletSelect').addEventListener('change',()=>{choosingWallet=true;});
+action('selectWallet',async()=>{await api('select-wallet',{slot:Number($('walletSelect').value)});choosingWallet=false;});
+action('createWallet',()=>api('create',{network:$('createNetwork').value,words:Number($('createWords').value)}));
+action('unlockWallet',()=>api('unlock',{}));
+action('lockWallet',()=>api('lock',{}));
+action('backupWallet',()=>api('backup',{}));
+action('changePin',()=>api('change-pin',{}));
 action('refreshPorts',refreshPorts);
 action('connectButton',async()=>{await api('connect',{port:$('portSelect').value});notice('Conectando pela USB…');});
 action('disconnectButton',()=>api('disconnect',{}));

@@ -16,7 +16,7 @@ class Bridge:
     def __init__(self,auto=True):
         self.lock=threading.RLock();self.commands=queue.Queue();self.port=None;self.active_port=None
         self.connection=None;self.running=True
-        self.data={'connected':False,'port':None,'saved':None,'unlocked':False,'network':None,'fingerprint':None,'address':None,'xpub':None,'signed':None,'pending':None,'message':'Conecte o dispositivo pela USB.','brightness':100,'version':None}
+        self.data={'connected':False,'port':None,'saved':None,'unlocked':False,'network':None,'fingerprint':None,'address':None,'xpub':None,'signed':None,'pending':None,'message':'Conecte o dispositivo pela USB.','brightness':100,'version':None,'flow':'idle','wallet':None,'slots':'00000'}
         found=ports()
         if auto and len(found)==1:self.port=found[0]['path']
         self.worker=threading.Thread(target=self.loop,daemon=True);self.worker.start()
@@ -41,10 +41,14 @@ class Bridge:
                 fp=parts[4] if len(parts)>4 and parts[3] in ('BTC','TEST') else None
                 if (self.data['fingerprint'] and fp and fp!=self.data['fingerprint']) or (self.data['saved'] and not saved):
                     self.data.update(address=None,xpub=None,signed=None)
-                self.data.update(saved=saved,unlocked=unlocked)
+                new_wallet=next((int(part[7:]) for part in parts if part.startswith('wallet:')),self.data['wallet'])
+                if new_wallet!=self.data['wallet']:self.data.update(address=None,xpub=None,signed=None,fingerprint=None,network=None)
+                self.data.update(saved=saved,unlocked=unlocked,wallet=new_wallet)
                 if not saved:self.data.update(fingerprint=None,network=None)
                 if fp:self.data.update(fingerprint=fp,network=parts[3])
                 for part in parts:
+                    if part.startswith('slots:'):self.data['slots']=part.split(':',1)[1]
+                    if part.startswith('flow:'):self.data['flow']=part.split(':',1)[1]
                     if part.startswith('brightness:'):
                         self.data['brightness']=int(part.split(':',1)[1])
             elif line.startswith('OPENVAULT '):
@@ -64,6 +68,10 @@ class Bridge:
                 except ValueError:ok=False
                 if ok:self.data.update(signed=text,pending=None,message='PSBT assinada. Baixe o arquivo; nada foi transmitido a rede.')
                 else:self.data.update(pending=None,message='Resposta de assinatura invalida.')
+            elif line=='WALLET_SELECTED':self.data.update(pending=None,address=None,xpub=None,signed=None,fingerprint=None,network=None,unlocked=False,saved=None,message='Carteira selecionada. Desbloqueie para operar ou crie se estiver vazia.')
+            elif line=='WALLET_SAVED':self.data.update(saved=True,unlocked=True,pending=None,message='Carteira salva na placa. Guarde as palavras de recuperacao.')
+            elif line=='UNLOCKED':self.data.update(unlocked=True,pending=None,message='Carteira desbloqueada. Escolha uma operacao no painel.')
+            elif line=='BACKUP_DONE':self.data.update(pending=None,message='Consulta do backup concluida na placa.')
             elif line=='REVIEW_READY':self.data['message']='Revise cada destino, valor e taxa na placa. Segure A somente se tudo conferir.'
             elif line.startswith('ERROR '):self.data.update(pending=None,message=line[6:].replace('_',' '))
             elif line.startswith(('CANCELED','LOCKED ')):
@@ -77,7 +85,7 @@ class Bridge:
         while not self.commands.empty():
             try:self.commands.get_nowait()
             except queue.Empty:break
-        with self.lock:self.data.update(connected=False,port=None,saved=None,unlocked=False,pending=None,address=None,xpub=None,signed=None,fingerprint=None,network=None,version=None)
+        with self.lock:self.data.update(connected=False,port=None,saved=None,unlocked=False,pending=None,address=None,xpub=None,signed=None,fingerprint=None,network=None,version=None,flow="idle",wallet=None,slots="00000")
     def loop(self):
         pending=bytearray();last_poll=0
         while self.running:
@@ -154,6 +162,18 @@ class Handler(BaseHTTPRequestHandler):
             bridge=self.server.bridge
             if self.path=='/api/connect':bridge.connect(str(body.get('port','')))
             elif self.path=='/api/disconnect':bridge.disconnect()
+            elif self.path=='/api/select-wallet':
+                slot=body.get('slot')
+                if type(slot) is not int or not 0<=slot<5:raise ValueError('Escolha uma das cinco carteiras')
+                bridge.send('SELECT '+str(slot),'switch')
+            elif self.path=='/api/create':
+                network=body.get('network');words=body.get('words')
+                if network not in ('BTC','TEST') or type(words) is not int or words not in (12,24):raise ValueError('Escolha Bitcoin/testnet e 12 ou 24 palavras')
+                if bridge.snapshot().get('saved') is not False:raise ValueError('A criacao exige dispositivo conectado sem cofre salvo')
+                bridge.send(f'CREATE {network} {words}','create')
+            elif self.path in ('/api/unlock','/api/lock','/api/backup','/api/change-pin'):
+                operation=self.path.rsplit('/',1)[1]
+                bridge.send({'unlock':'UNLOCK','lock':'LOCK','backup':'BACKUP','change-pin':'CHANGE_PIN'}[operation],operation)
             elif self.path=='/api/address':bridge.send('ADDRESS','address')
             elif self.path=='/api/xpub':bridge.send('REQUEST_XPUB','xpub')
             elif self.path=='/api/brightness':

@@ -43,3 +43,8 @@ Taproot, PSBT v2, passphrase BIP39 e proteção auditada contra extração físi
 Versão 0.3.0: menu condicionado à existência do cofre, painel web local via USB
 em 127.0.0.1:8765, endereço/xpub mediante confirmação física e brilho persistente.
 O painel não recebe seed/PIN nem consulta saldo. Serviço de usuário openvault-panel.
+
+Versão 0.5.0: criação iniciada pelo painel com autorização física, desbloqueio,
+bloqueio, backup e troca de PIN iniciados pela web. PSBT abre revisão diretamente.
+Cinco espaços de carteira independentes; seleção física bloqueia a anterior.
+Seed/PIN continuam na placa. Nenhum pagamento é preparado ou transmitido pelo painel.

@@ -79,3 +79,15 @@ Endereço/xpub e mudanças de brilho exigem botões da placa. A assinatura mant�
 as mesmas validações e revisão física do protocolo USB. Um processo malicioso no
 mesmo computador ainda pode acessar a USB/painel; loopback não protege contra
 comprometimento local. A xpub revela a conta e deve ser tratada como dado privado.
+
+## Atualização 0.5: controles web e isolamento
+
+A criação pode ser solicitada pelo HTTP, mas só gera entropia após autorização
+física. Criação não substitui um cofre existente. Selecionar outra carteira exige
+confirmação na placa, cancela a chave em memória e exige o PIN da carteira escolhida.
+A ponte remove dados públicos/assinatura da carteira anterior. Pedidos durante
+backup, PIN, criação ou revisão são rejeitados; não podem trocar o espaço usado
+por uma operação em andamento. Cada espaço tem blob e contador de tentativas
+independentes. O espaço original usa as mesmas chaves persistentes da versão 0.3.
+A API continua sem rota que aceite ou revele seed/PIN. Backup iniciado no painel
+é exibição das palavras no LCD, não exportação de segredo ao computador.

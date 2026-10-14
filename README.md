@@ -176,3 +176,26 @@ simultaneamente. Pare com `systemctl --user stop openvault-panel`; reinicie com
 
 Testes do painel: `.venv/bin/python tests/test_web.py` e
 `.venv/bin/python tests/test_companion.py`.
+
+## Fluxo pelo painel e várias carteiras — 0.5.0
+
+O painel agora inicia as operações. Em **Suas carteiras**, selecione um dos cinco
+espaços e clique em **Trocar carteira**. Confirme o número na placa segurando A.
+A troca bloqueia a carteira anterior e limpa endereço, xpub e PSBT exibidos.
+
+Para adicionar uma carteira, selecione um espaço vazio, escolha rede e 12/24
+palavras e clique em **Criar carteira**. Segure A na placa para autorizar. Anote
+as palavras (B avança; segure A na última), defina e repita o PIN de 8 dígitos.
+O painel acompanha cada etapa e só informa salva após a gravação do cofre.
+Cada espaço tem sua própria seed, PIN, índice de recebimento e tentativas de PIN.
+A carteira antiga permanece no espaço 1; a atualização preserva as chaves NVS.
+
+Desbloquear, bloquear, ver backup e trocar PIN são iniciados na visão geral.
+Para assinar, basta enviar a PSBT pelo painel: a revisão abre na placa, sem
+selecionar Assinar PSBT no menu. A seed/PIN continuam exclusivamente na placa.
+O menu físico permanece como alternativa. Na tela inicial, A abre esse menu.
+
+**Enviar:** a versão atual revisa/assina uma PSBT preparada por outra carteira e
+permite baixá-la; não prepara pagamentos a partir de saldo nem faz broadcast.
+Não há consulta de saldo/histórico. O endereço confirmado serve para recebimento
+na rede escolhida. Cada carteira deve ser desbloqueada antes de receber/assinar.

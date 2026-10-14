@@ -1,5 +1,6 @@
 #include "openvault/wallet.hpp"
 #include "openvault/menu.hpp"
+#include "openvault/control.hpp"
 #include <cassert>
 #include <iostream>
 #include <fstream>
@@ -9,6 +10,14 @@ int main(int argc,char**argv){
  assert(fresh.size()==2&&fresh[0]==0&&fresh[1]==1);
  assert(locked.size()==1&&locked[0]==2);
  for(auto action:unlocked)assert(action!=0&&action!=1);
+ assert(walletStorageKey("vault",0)=="vault");assert(walletStorageKey("vault",1)=="vault1");assert(walletStorageKey("attempts",4)=="attempts4");
+ for(unsigned i=0;i<walletSlots;++i)assert(parseSlot("SELECT "+std::to_string(i))==int(i));
+ for(const auto& bad:{"SELECT 5","SELECT -1","SELECT 0 extra","SELECT 00","SELECT 0\nLOCK"})assert(parseSlot(bad)==-1);
+ assert(parseCreate("CREATE BTC 24").valid&&parseCreate("CREATE BTC 24").mainnet);
+ assert(parseCreate("CREATE TEST 12").valid&&!parseCreate("CREATE TEST 12").mainnet);
+ for(const auto& bad:{"CREATE BTC 0","CREATE TEST 13","CREATE BTC 12 extra","CREATE MAIN 12","CREATE BTC 12\nLOCK"})assert(!parseCreate(bad).valid);
+ assert(allowCreate(false,false,true));
+ assert(!allowCreate(true,false,true));assert(!allowCreate(false,true,true));assert(!allowCreate(false,false,false));
  assert(wally_init(0)==WALLY_OK);
  assert(Wallet::selfTest());
  Wallet wallet;
@@ -23,6 +32,12 @@ int main(int argc,char**argv){
  assert(wallet.seal("42687359",random,sealed));
  assert(sealed.size()==120);
  const auto saved=sealed;
+ Wallet second;uint8_t otherEntropy[16];for(size_t i=0;i<16;++i)otherEntropy[i]=uint8_t(i+1);
+ assert(second.setEntropy(otherEntropy,16,true));auto secondAddress=second.address();assert(secondAddress!=mainAddress);
+ std::vector<uint8_t> secondBlob;assert(second.seal("58764291",random,secondBlob));second.lock();
+ assert(!second.unlock(secondBlob,"42687359"));assert(second.unlock(secondBlob,"58764291"));assert(second.address()==secondAddress);
+ assert(!second.unlock(saved,"58764291"));assert(second.unlock(saved,"42687359"));assert(second.address()==mainAddress);
+ for(unsigned i=0;i<walletSlots;++i)for(unsigned j=i+1;j<walletSlots;++j)assert(walletStorageKey("vault",i)!=walletStorageKey("vault",j));
  wallet.lock();assert(!wallet.ready());
  assert(!wallet.unlock(sealed,"12345678"));assert(!wallet.ready());
  assert(wallet.unlock(sealed,"42687359"));assert(wallet.address()==mainAddress);

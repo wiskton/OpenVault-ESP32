@@ -3,8 +3,8 @@ from pathlib import Path
 spec=importlib.util.spec_from_file_location('web',Path(__file__).resolve().parents[1]/'companion/web_server.py')
 web=importlib.util.module_from_spec(spec);spec.loader.exec_module(web)
 class FakeBridge:
-    def __init__(self):self.calls=[]
-    def snapshot(self):return {'connected':False,'address':None}
+    def __init__(self):self.calls=[];self.saved=False
+    def snapshot(self):return {'connected':True,'address':None,'saved':self.saved}
     def send(self,*args):self.calls.append(args)
 class WebTests(unittest.TestCase):
     @classmethod
@@ -30,7 +30,44 @@ class WebTests(unittest.TestCase):
         self.assertEqual(self.request('/api/brightness','POST',{'value':100})[0],200)
         self.assertEqual(self.server.bridge.calls[-1],('BRIGHTNESS 100','brightness'))
         self.assertEqual(self.request('/api/sign','POST',{'psbt':'not a psbt'})[0],400)
-        self.assertEqual(self.request('/api/create','POST',{})[0],404)
+        self.assertEqual(self.request('/api/create','POST',{})[0],400)
+    def test_creation_and_management(self):
+        bridge=self.server.bridge;bridge.saved=False
+        for body in [{'network':'BTC','words':True},{'network':'BTC','words':13},{'network':'BTC\nLOCK','words':12}]:
+            self.assertEqual(self.request('/api/create','POST',body)[0],400)
+        self.assertEqual(self.request('/api/create','POST',{'network':'TEST','words':24})[0],200)
+        self.assertEqual(bridge.calls[-1],('CREATE TEST 24','create'))
+        bridge.saved=True
+        try:self.assertEqual(self.request('/api/create','POST',{'network':'BTC','words':12})[0],400)
+        finally:bridge.saved=False
+        for route,command in [('unlock','UNLOCK'),('lock','LOCK'),('backup','BACKUP'),('change-pin','CHANGE_PIN')]:
+            self.assertEqual(self.request('/api/'+route,'POST',{})[0],200)
+            self.assertEqual(bridge.calls[-1],(command,route))
+    def test_multiple_wallet_selection(self):
+        for slot in [True,-1,5,'1']:
+            self.assertEqual(self.request('/api/select-wallet','POST',{'slot':slot})[0],400)
+        for slot in range(5):
+            self.assertEqual(self.request('/api/select-wallet','POST',{'slot':slot})[0],200)
+            self.assertEqual(self.server.bridge.calls[-1],('SELECT '+str(slot),'switch'))
+        b=web.Bridge(auto=False)
+        try:
+            b.line('STATUS saved unlocked BTC 73c5da0a wallet:0 slots:11000 flow:idle brightness:100')
+            b.data.update(address={'value':'old'},xpub={'value':'old'},signed='old')
+            b.line('STATUS saved locked wallet:1 slots:11000 flow:idle brightness:100')
+            self.assertEqual(b.snapshot()['wallet'],1);self.assertEqual(b.snapshot()['slots'],'11000')
+            for key in ('address','xpub','signed','fingerprint','network'):self.assertIsNone(b.snapshot()[key])
+            b.line('WALLET_SELECTED');self.assertFalse(b.snapshot()['unlocked'])
+        finally:b.running=False;b.worker.join(timeout=2)
+    def test_setup_progress_contains_no_secrets(self):
+        b=web.Bridge(auto=False)
+        try:
+            b.data['pending']='create';b.line('STATUS empty unlocked TEST 73c5da0a flow:backup brightness:100')
+            self.assertEqual(b.snapshot()['flow'],'backup');self.assertEqual(b.snapshot()['pending'],'create')
+            b.line('WALLET_SAVED');self.assertTrue(b.snapshot()['saved']);self.assertIsNone(b.snapshot()['pending'])
+            b.line('CANCELED');self.assertIsNone(b.snapshot()['pending'])
+            b.data['pending']='unlock';b.line('UNLOCKED');self.assertIsNone(b.snapshot()['pending'])
+            self.assertFalse(any(k in b.snapshot() for k in ('seed','pin','mnemonic','entropy')))
+        finally:b.running=False;b.worker.join(timeout=2)
     def test_public_cache_erased_on_wallet_removal(self):
         b=web.Bridge(auto=False)
         try:

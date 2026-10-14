@@ -44,3 +44,19 @@ framing de linhas e estado em RAM. companion/web contém HTML/CSS/JS locais.
 ADDRESS e REQUEST_XPUB iniciam confirmação física; BRIGHTNESS 40..200 também.
 STATUS informa versão via PING, existência/bloqueio, rede/fingerprint quando
 já desbloqueada e brilho. Nenhuma rota HTTP ou comando USB recebe seed/PIN.
+
+## Controles e múltiplas carteiras 0.5
+
+CREATE BTC|TEST 12|24 apenas inicia ConfirmCreate em espaço vazio/ocioso. Geração
+requer hold A; seed e PIN passam pelo fluxo local existente. UNLOCK, LOCK, BACKUP
+e CHANGE_PIN iniciam fluxos locais sem transportar segredos. SIGN aceita pedido
+em tela ociosa desbloqueada e inicia revisão, mantendo as validações do núcleo.
+SELECT 0..4 entra em ConfirmSwitch; hold A limpa a chave em RAM e carrega o espaço.
+
+STATUS acrescenta wallet:0..4, slots:cinco bits e flow:etapa pública. A ponte limpa
+endereço/xpub/PSBT ao trocar de espaço. Não inclui seed, PIN ou palavras nos estados.
+WALLET_SAVED, WALLET_SELECTED, UNLOCKED, BACKUP_DONE e CANCELED concluem pedidos.
+
+Espaço 0 preserva chaves NVS vault/receive/attempts; espaços 1..4 usam vaultN,
+receiveN e attemptsN. active guarda só o identificador selecionado. Não há migração
+nem apagamento dos cofres anteriores. Uma única Wallet permanece em RAM.
