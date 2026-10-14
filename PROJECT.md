@@ -1,50 +1,45 @@
-# OpenVault ESP32 — contexto de continuidade
+# OpenVault ESP32 — estado do projeto
 
-## Intenção
+Projeto em `~/Documents/GitHub/OpenVault-ESP32`, para M5StickC PLUS2
+(ESP32-PICO-V3-02, 8 MB de flash). Host Pop!_OS 24.04.
 
-Desenvolver um protótipo de dispositivo Bitcoin no M5StickC PLUS2 que futuramente
-possa criar/importar BIP39, desbloquear por PIN, proteger uma seed persistente,
-mostrar endereços por QR e assinar PSBTs após revisão humana.
+O usuário pediu explicitamente uma carteira funcional, além do protótipo de UI.
+A versão 0.2.0 implementa:
 
-Projeto iniciado em `~/Documents/GitHub/OpenVault-ESP32` em 14/10/2026.
-Host: Pop!_OS 24.04, x86_64. O usuário tem o hardware, mas nenhuma porta serial
-estava visível na inspeção inicial. Não foi gravado firmware pelo assistente.
+- geração e importação BIP39 inglês, 12/24 palavras, checksum;
+- Bitcoin mainnet/testnet, BIP84 conta 0, passphrase BIP39 vazia;
+- exibição e confirmação de backup físico das palavras;
+- cofre NVS autenticado e cifrado, PIN de 8 dígitos e troca de PIN;
+- bloqueio explícito/por inatividade, atraso após erros de PIN e remoção do cofre;
+- endereços indexados, QR de recebimento e xpub watch-only autorizado na placa;
+- PSBT v0/P2WPKH com revisão de todos os destinos, valores e taxa e confirmação física;
+- companion USB para transporte/finalização, sem seed/PIN no host e sem broadcast.
 
-## Marco 0.1: interface e diagnóstico
+A libwally-core é baixada em revisão fixa, compilada para host e ESP32. O núcleo
+é testado com vetores públicos e casos negativos. Não é uma hardware wallet auditada:
+consulte docs/SECURITY.md. Não chamar limites de escopo de recursos suportados.
 
-- [x] Repositório e estrutura C++.
-- [x] Núcleo compartilhado entre firmware e simulador de terminal.
-- [x] Aviso inicial e seis itens de menu em português (ASCII na fonte embarcada).
-- [x] Botões A/B, retorno por B longo e diagnóstico de contadores/bateria.
-- [x] Configuração PLUS2, tela, HOLD e desligamento de rádio no boot.
-- [x] Scripts de setup, build, teste e upload com confirmação.
-- [x] Firmware compilado e binário gerado; detalhes em docs/VALIDATION.md.
-- [ ] Validar fisicamente LCD, botões, bateria e operação sem USB.
+A primeira interface 0.1/0.1.1 e seu simulador ficam preservados como histórico.
+O firmware atual usa src/main.cpp e src/wallet.cpp. A implementação UI de 0.1 em
+include/openvault/app.hpp não é usada pelo firmware atual.
 
-A compilação deve ser registrada em `docs/VALIDATION.md`. Os itens Criar/Importar/
-Desbloquear/Assinar são telas de planejamento, deliberadamente indisponíveis.
-Não chamar esta etapa de carteira funcional.
+## Evidências e pendências de hardware
 
-## Próximos marcos
+Backup integral original de 8 MB em backups/m5stickc-plus2-original-20261014,
+verificado por digest do esptool; não inclui seeds criadas depois. A pasta é privada
+e ignorada pelo Git. Nunca publicar esse backup.
 
-1. **Hardware:** conectar a placa e validar a lista de teste do README.
-2. **Criptografia em host:** selecionar bibliotecas mantidas para BIP39/BIP32,
-   secp256k1, endereços e PSBT; executar vetores oficiais e casos inválidos.
-   Não reimplementar primitivas criptográficas.
-3. **Carteira volátil de teste:** criar/importar apenas dados de teste com checksum,
-   derivar endereços testnet e apresentar QR. Estudar entropia no ESP32 com rádio off.
-4. **PSBT testnet:** analisar entradas/saídas, rede, troco e taxa; revisão explícita
-   no dispositivo antes de assinar; validar contra uma carteira de referência.
-5. **Persistência experimental:** definir modelo de ameaça, PIN/KDF, AEAD e recuperação.
-   Avaliar secure boot, flash encryption e anti-rollback sem habilitar eFuses cedo.
-6. **Entrada offline:** escolher câmera ou microSD compatível e transporte multipartes.
+A porta é /dev/serial/by-id/usb-1a86_USB_Single_Serial_58FC011250-if00.
+O usuário liberou acesso a /dev/ttyACM0 via ACL. Essa permissão pode precisar ser
+reaplicada após desconectar. Logs e instalação atualizados em docs/VALIDATION.md.
 
-SeedSigner é referência de experiência e protocolos; o firmware Raspberry Pi não
-roda diretamente no ESP32. Reuso de código exige análise das licenças.
+Confirmação física de leitura/conforto, anotação de seed, digitação de PIN, operação
+sem USB e revisão real de transação deve ser feita pelo usuário. Não automatizar
+criação de carteira persistente com seed pública de teste no aparelho do usuário.
 
-## Regras de desenvolvimento
+Ainda não implementados: câmera ou microSD, entrada PSBT por QR animado, multisig,
+Taproot, PSBT v2, passphrase BIP39 e proteção auditada contra extração física.
 
-Não adicionar seeds reais a arquivos, logs, testes, issues ou terminal. Não mostrar
-endereços de recebimento com aparência operacional antes de validar derivação.
-Não declarar proteção física ou isolamento de rádio com base apenas em configuração.
-Documentar claramente quais funcionalidades são implementadas e quais são planejadas.
+Versão 0.3.0: menu condicionado à existência do cofre, painel web local via USB
+em 127.0.0.1:8765, endereço/xpub mediante confirmação física e brilho persistente.
+O painel não recebe seed/PIN nem consulta saldo. Serviço de usuário openvault-panel.

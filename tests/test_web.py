@@ -1,0 +1,44 @@
+import importlib.util,json,http.client,threading,unittest
+from pathlib import Path
+spec=importlib.util.spec_from_file_location('web',Path(__file__).resolve().parents[1]/'companion/web_server.py')
+web=importlib.util.module_from_spec(spec);spec.loader.exec_module(web)
+class FakeBridge:
+    def __init__(self):self.calls=[]
+    def snapshot(self):return {'connected':False,'address':None}
+    def send(self,*args):self.calls.append(args)
+class WebTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.server=web.ThreadingHTTPServer(('127.0.0.1',0),web.Handler);cls.server.bridge=FakeBridge()
+        cls.thread=threading.Thread(target=cls.server.serve_forever,daemon=True);cls.thread.start()
+    @classmethod
+    def tearDownClass(cls):cls.server.shutdown();cls.server.server_close();cls.thread.join()
+    def request(self,path,method='GET',data=None,headers=None):
+        h={'X-OpenVault-Token':web.TOKEN,'Content-Type':'application/json'};h.update(headers or {})
+        c=http.client.HTTPConnection('127.0.0.1',self.server.server_port);c.request(method,path,body=json.dumps(data) if data is not None else None,headers=h)
+        r=c.getresponse();result=(r.status,r.read(),dict(r.getheaders()));c.close();return result
+    def test_static_and_private_files(self):
+        status,body,headers=self.request('/');self.assertEqual(status,200);self.assertIn(web.TOKEN.encode(),body);self.assertIn("frame-ancestors 'none'",headers['Content-Security-Policy'])
+        for path in ['/../README.md','/backups/flash-original.bin','/api/seed','/api/pin']:
+            self.assertEqual(self.request(path)[0],404)
+    def test_token_origin_host(self):
+        self.assertEqual(self.request('/api/state')[0],200)
+        for headers in [{'X-OpenVault-Token':''},{'Origin':'https://evil.example'},{'Host':'evil.example'},{'Sec-Fetch-Site':'cross-site'}]:
+            self.assertEqual(self.request('/api/state',headers=headers)[0],403)
+    def test_request_validation_and_physical_command(self):
+        for value in [[],{'value':True},{'value':201},{'value':0}]:self.assertEqual(self.request('/api/brightness','POST',value)[0],400)
+        self.assertEqual(self.request('/api/brightness','POST',{'value':100})[0],200)
+        self.assertEqual(self.server.bridge.calls[-1],('BRIGHTNESS 100','brightness'))
+        self.assertEqual(self.request('/api/sign','POST',{'psbt':'not a psbt'})[0],400)
+        self.assertEqual(self.request('/api/create','POST',{})[0],404)
+    def test_public_cache_erased_on_wallet_removal(self):
+        b=web.Bridge(auto=False)
+        try:
+            b.data.update(saved=True,fingerprint='old',network='BTC',address={'value':'old'},xpub={'value':'old'},signed='old')
+            b.line('STATUS empty locked brightness:100')
+            for key in ['address','xpub','signed','fingerprint','network']:self.assertIsNone(b.snapshot()[key])
+            b.line('STATUS saved unlocked TEST 73c5da0a brightness:120')
+            self.assertEqual(b.snapshot()['network'],'TEST');self.assertEqual(b.snapshot()['brightness'],120)
+            b.reset_connection();self.assertIsNone(b.snapshot()['network'])
+        finally:b.running=False;b.worker.join(timeout=2)
+if __name__=='__main__':unittest.main()

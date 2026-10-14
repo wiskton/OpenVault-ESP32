@@ -1,13 +1,16 @@
 # Working on OpenVault ESP32
 
-Read PROJECT.md, docs/SECURITY.md and docs/VALIDATION.md before extending the wallet.
-The current milestone is a UI-only hardware prototype. Keep future wallet features
-clearly labeled until implemented and validated; never use real wallet secrets.
+Read PROJECT.md, docs/SECURITY.md and docs/VALIDATION.md before wallet changes.
+The user expanded the scope beyond the original UI-only milestone: 0.2 implements
+Bitcoin wallet operations. Keep exact supported policies and remaining limits clear.
+Never use real wallet secrets in logs, terminals, source, tests or issues.
 
-Run `./scripts/dev.sh test` for shared UI changes, and `./scripts/dev.sh build` for
-firmware changes. Update the validation record with actual results and distinguish
-host tests, cross-compilation and physical device tests.
+Run `./scripts/test_wallet.sh` for core/security changes, companion tests for transport,
+and `./scripts/dev.sh build` for firmware changes. Record actual results and distinguish
+host tests, cross-compilation, boot verification and manual button/screen testing.
+Use maintained pinned libraries and published vectors; do not implement crypto primitives.
 
-Keep cryptographic functionality separate from UI and use maintained libraries
-with published test vectors. Do not commit toolchains, virtualenvs, build outputs,
-seeds, PINs or device dumps. Never enable irreversible eFuses as a routine build step.
+Do not commit toolchains, .deps, virtualenvs, binaries, seeds, PINs or device dumps.
+Never enable irreversible eFuses as a routine build step. Firmware installation must
+preserve the user's cofre and original backup; never create a known/test wallet in the
+user's persistent namespace. The old terminal simulator is UI-only, not the current wallet.

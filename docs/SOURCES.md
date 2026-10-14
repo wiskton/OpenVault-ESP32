@@ -15,3 +15,18 @@
 
 As bibliotecas são dependências externas; nenhum código do SeedSigner foi copiado
 neste marco. As versões efetivas da compilação estão em `platformio.ini`.
+
+## Base da carteira 0.2
+
+- libwally-core upstream: https://github.com/ElementsProject/libwally-core
+  Revisão fixada: 374df231d05410a31d605b31c1cc5256581381d7; licença BSD-MIT (conforme LICENSE upstream).
+  O submódulo secp256k1-zkp fica fixado pela própria revisão upstream (licença MIT).
+- Entropia ESP32/ESP-IDF 4.4:
+  https://docs.espressif.com/projects/esp-idf/en/v4.4.7/esp32/api-reference/system/random.html
+- Protocolos Bitcoin:
+  https://github.com/bitcoin/bips/blob/master/bip-0039.mediawiki
+  https://github.com/bitcoin/bips/blob/master/bip-0084.mediawiki
+  https://github.com/bitcoin/bips/blob/master/bip-0174.mediawiki
+
+A biblioteca uBitcoin foi avaliada e não foi integrada: sua última atualização
+identificada foi em 2023. Nenhum de seus fontes foi copiado para o firmware.

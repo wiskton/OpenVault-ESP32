@@ -33,3 +33,57 @@ Nenhuma porta `/dev/ttyUSB*` ou `/dev/ttyACM*` estava visível no diagnóstico i
 Não houve upload, alteração de eFuses nem teste físico. Tela, botões, energia e leitura
 de bateria precisam ser confirmados na placa. As mensagens do simulador não comprovam
 esses itens.
+
+## Identificação e backup físico — 2026-10-14
+
+Após liberar acesso à porta USB, o chip foi identificado como ESP32-PICO-V3-02,
+revisão v3.1, com 8 MB de flash. Backup integral lido de 0x0 até 0x800000 e salvo
+em `backups/m5stickc-plus2-original-20261014/flash-original.bin` (pasta ignorada pelo Git).
+`esptool verify_flash` confirmou **digest matched**. Checksum e instruções de restauração
+estão junto da imagem. O backup não inclui eFuses ou RAM.
+
+Não foi gravado firmware novo. O teste físico da interface OpenVault segue pendente.
+
+## Instalação do protótipo — 2026-10-14
+
+Upload autorizado pelo usuário e concluído com `pio run -e m5stickc-plus2 --target upload`
+na porta serial do PLUS2. Bootloader, partições, boot_app0 e aplicação foram gravados;
+o esptool confirmou os hashes de cada região e o PlatformIO retornou SUCCESS.
+O backup original permanece intacto na pasta privada `backups/`.
+
+Após reiniciar pela USB, o monitor serial confirmou:
+
+```text
+OpenVault 0.1.0: UI-only demo; no wallet or secrets.
+```
+
+A mensagem ocorre após a criação do framebuffer e a execução de `render()`; o boot
+chegou ao final do setup. Não apareceram Guru Meditation, backtrace ou brownout
+na janela de observação de 12 segundos. Log local em `artifacts/boot-device.log`.
+
+Confirmação visual do LCD, navegação por A/B e autonomia sem USB ainda dependem
+de teste humano. Não há funcionalidade de carteira implementada nesta versão.
+
+## Carteira funcional e painel 0.3.0 — 2026-10-14
+
+Os relatos acima descrevem marcos históricos. O firmware atual inclui carteira real.
+
+- Testes C++: BIP39/BIP84, 12/24 palavras, PIN, autenticação/adulteração do cofre,
+  menu sem Criar/Importar quando salvo e política PSBT aprovados.
+- Assinatura do núcleo C++ conferida por libwally Python e OpenSSL, com nove
+  PSBTs inválidas rejeitadas. Foram usados somente vetores públicos no host.
+- Dois testes do companion e quatro testes do painel HTTP aprovados; incluem
+  framing, token, Host/Origin, validação JSON e ausência de rotas seed/PIN/criação.
+- JavaScript validado com node --check; git diff --check aprovado.
+- Cross-compilação PlatformIO aprovada: RAM 60.508 bytes, flash 1.230.853 bytes.
+- Primeiro upload perdeu comunicação; a repetição terminou SUCCESS, com hashes
+  verificados. A partição NVS não foi apagada. Nenhuma carteira de teste foi criada.
+- Reinício real confirmou `OPENVAULT 0.3.0 SELFTEST_OK READY` e
+  `STATUS empty locked brightness:100`. Log local ignorado pelo Git.
+- Serviço openvault-panel ativo; HTTP autenticado confirmou USB conectada,
+  firmware 0.3.0 e ausência de cofre. Navegador mostrou visão geral e dispositivo
+  com esses mesmos dados. A captura de imagem do navegador não estava disponível.
+
+A persistência do formato cifrado foi exercitada no host. Criar uma seed real,
+confirmar PIN, desligar/religar a placa e conferir a recuperação continuam sendo
+operações físicas do usuário; o assistente não lê nem registra os segredos.

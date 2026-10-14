@@ -1,19 +1,46 @@
-# Arquitetura do primeiro protótipo
+# Arquitetura 0.2
 
-`App` recebe ações `Select`, `Next` e `Back`, altera um estado e fornece um `View`.
-Ela não acessa flash, rede, USB ou criptografia. O firmware traduz botões M5Unified
-nessas ações e desenha o resultado em um framebuffer RGB565 de 240 × 135 (~65 KB).
-O simulador de terminal faz a mesma tradução para comandos digitados.
+`Wallet` é o núcleo portátil C++: usa libwally para BIP39/BIP32/BIP84, endereços,
+AES/HMAC/PBKDF2 e PSBT. Entropia vem de fora e persistência não faz parte do núcleo.
+A interface recebe somente operações específicas; não há método de exportar chave
+privada ou frase inteira pela USB.
 
-Não há heap na máquina de estados. Os textos têm até 37 caracteres por linha na
-fonte padrão; testes verificam esse limite. A seleção circula por seis itens.
-O retorno preserva o índice selecionado. Um botão B longo não gera um avanço
-adicional ao ser solto. O boot exige reconhecimento do aviso com A.
+`src/main.cpp` adapta botões, framebuffer 240 × 135 RGB565, fonte padrão em escala 2,
+fonte maior para palavras, NVS e geração de entropia na plataforma. As palavras
+são exibidas individualmente. PIN é digitado com B (incrementar) e A (fixar).
+Conteúdo longo é dividido em páginas; menus mostram três opções por vez.
 
-O diagnóstico redesenha a cada segundo para atualizar bateria; demais telas só
-redesenham ao navegar. O laço usa `M5.update()` e uma espera curta de 10 ms.
-Não há entrada serial de seeds ou de comandos de assinatura. A única mensagem
-serial própria descreve a versão e o caráter demonstrativo.
+O fluxo de criação mantém uma carteira volátil até percorrer as palavras e confirmar
+o PIN duas vezes. O cofre é salvo em um único blob NVS com autenticação do cabeçalho.
+Reinício inicia com a carteira bloqueada. Há somente uma carteira persistente por vez;
+criação/importação não sobrescreve um cofre existente silenciosamente.
 
-As futuras camadas de carteira, armazenamento e PSBT deverão ficar separadas da UI,
-com modelos de revisão de transações que não dependam de strings fornecidas pelo host.
+O parser libwally fornece a PSBT. A política própria confere propriedade dos inputs,
+UTXOs completos, valores, scripts, derivação e taxa antes de montar as páginas. A PSBT
+aceita permanece congelada em `pending_` até uma confirmação física; cancelar ou
+bloquear a carteira a descarta. Os dados derivados do host não se tornam rótulos de
+troco confiáveis sem verificar caminho e script.
+
+Protocolo UART delimitado por newline:
+
+- `PING` → versão pública;
+- `STATUS` → estado saved/empty e unlocked/locked;
+- `SIGN <base64>` → permitido apenas na tela Assinar PSBT;
+- `REVIEW_READY`, `SIGNED <base64>`, `ERROR ...`, `CANCELED`, `LOCKED timeout`;
+- `XPUB <fingerprint> <origem> <xpub>` só sai após autorização pelos botões.
+
+Não há comandos PIN, seed, criação ou desbloqueio. O companion mantém framing entre
+fragmentos de serial e nunca trata um pedaço de resposta como PSBT completa.
+
+Build: upstream libwally CMake, Bitcoin-only, secp256k1 com tabelas reduzidas para
+memória embarcada. Cabeçalhos públicos e biblioteca são da mesma revisão. Testes
+nativos usam o mesmo src/wallet.cpp; Python libwally é usado como referência separada
+para verificar a assinatura ECDSA e finalizar a transação de teste.
+
+## Painel 0.3
+
+companion/web_server.py é uma ponte HTTP loopback/USB com conexão serial exclusiva,
+framing de linhas e estado em RAM. companion/web contém HTML/CSS/JS locais.
+ADDRESS e REQUEST_XPUB iniciam confirmação física; BRIGHTNESS 40..200 também.
+STATUS informa versão via PING, existência/bloqueio, rede/fingerprint quando
+já desbloqueada e brilho. Nenhuma rota HTTP ou comando USB recebe seed/PIN.

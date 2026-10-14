@@ -23,6 +23,13 @@ class App {
 public:
     static constexpr std::size_t menu_size = 6;
     Screen screen() const { return screen_; }
+    std::size_t page() const { return page_; }
+    static constexpr std::size_t lines_per_page = 3;
+    std::size_t page_count() const {
+        std::size_t count = 0;
+        for (auto line : view().lines) if (*line) ++count;
+        return count == 0 ? 1 : (count + lines_per_page - 1) / lines_per_page;
+    }
     std::size_t selected() const { return selected_; }
     const Metrics& metrics() const { return metrics_; }
     void set_battery(int value) { metrics_.battery_percent = value; }
@@ -35,10 +42,15 @@ public:
         if (action == Action::Select) ++metrics_.select_presses;
         if (action == Action::Back) {
             if (screen_ != Screen::Welcome) screen_ = Screen::Menu;
+            page_ = 0;
+            return;
+        }
+        if (screen_ != Screen::Menu && action == Action::Next) {
+            page_ = (page_ + 1) % page_count();
             return;
         }
         if (screen_ == Screen::Welcome) {
-            if (action == Action::Select) screen_ = Screen::Menu;
+            if (action == Action::Select) { screen_ = Screen::Menu; page_ = 0; }
             return;
         }
         if (screen_ == Screen::Menu) {
@@ -46,35 +58,38 @@ public:
             else {
                 static const Screen screens[] = {Screen::Create, Screen::Import, Screen::Unlock, Screen::Sign, Screen::Diagnostics, Screen::About};
                 screen_ = screens[selected_];
+                page_ = 0;
             }
         } else if (action == Action::Select) {
             screen_ = Screen::Menu;
+            page_ = 0;
         }
     }
     View view() const {
         switch (screen_) {
         case Screen::Welcome:
-            return {"OPENVAULT", {"PROTOTIPO 0.1 - SEM FUNDOS", "M5StickC PLUS2", "Tela e botoes em teste", "Nao insira uma seed real.", "Nenhuma carteira e criada."}, "A: iniciar"};
+            return {"OPENVAULT", {"PROTOTIPO 0.1.1", "Nao cria carteira.", "Nao use seed real.", "Tela e botoes", "em validacao."}, "A:inicia B:pagina"};
         case Screen::Menu:
-            return {"OPENVAULT / MENU", {"", "", "", "", ""}, "A: abrir  B: proximo"};
+            return {"MENU", {"", "", "", "", ""}, "A:abrir B:proximo"};
         case Screen::Create:
-            return {"CRIAR CARTEIRA", {"Recurso ainda indisponivel", "Proxima etapa: BIP39", "Entropia precisa validacao", "Nenhuma seed foi gerada.", "Use apenas dados de teste."}, "A: voltar | segure B: menu"};
+            return {"CRIAR CARTEIRA", {"Nao implementado.", "Nenhuma carteira", "foi criada.", "Proxima etapa:", "BIP39 de teste."}, "A:volta B:pagina"};
         case Screen::Import:
-            return {"IMPORTAR SEED", {"Entrada de seed desativada", "Planejado: 12/24 palavras", "Checksum BIP39 obrigatorio", "Nao digite segredos reais.", "Nada e salvo em flash."}, "A: voltar | segure B: menu"};
+            return {"IMPORTAR SEED", {"Nao implementado.", "Nao digite seed.", "Nada sera salvo.", "Planejado:", "12 ou 24 palavras."}, "A:volta B:pagina"};
         case Screen::Unlock:
-            return {"DESBLOQUEAR", {"Cofre ainda nao implementado", "Nao ha PIN ou seed salvos.", "Criptografia e anti-brute", "force exigem validacao.", "Nenhum segredo neste build."}, "A: voltar | segure B: menu"};
+            return {"DESBLOQUEAR", {"Nao implementado.", "Nao ha cofre", "ou PIN salvos.", "Persistencia em", "desenvolvimento."}, "A:volta B:pagina"};
         case Screen::Sign:
-            return {"ASSINAR PSBT", {"Assinatura indisponivel", "Futuro: Bitcoin testnet", "Conferir destino e taxa", "Entrada QR requer camera.", "USB usado para gravacao."}, "A: voltar | segure B: menu"};
+            return {"ASSINAR PSBT", {"Nao implementado.", "Nao ha assinatura.", "Sem transacoes.", "Planejado:", "Bitcoin testnet."}, "A:volta B:pagina"};
         case Screen::Diagnostics:
-            return {"DIAGNOSTICO", {"Tela: 240 x 135 (paisagem)", "A: selecionar/voltar", "B: avancar; segurar: menu", "Radio: desligado no boot", "C: botao de energia"}, "A: voltar | segure B: menu"};
+            return {"DIAGNOSTICO", {"Contador A", "Contador B", "Bateria", "", ""}, "A:voltar"};
         case Screen::About:
-            return {"SOBRE", {"OpenVault ESP32 / 0.1.0", "Inspirado no SeedSigner", "Firmware proprio ESP32", "Sem garantia de seguranca", "Nao e uma wallet pronta."}, "A: voltar | segure B: menu"};
+            return {"SOBRE", {"OpenVault 0.1.1", "M5StickC PLUS2", "Prototipo de UI", "Inspirado no", "SeedSigner."}, "A:volta B:pagina"};
         }
         return {"ERRO", {"", "", "", "", ""}, ""};
     }
 private:
     Screen screen_ = Screen::Welcome;
     std::size_t selected_ = 0;
+    std::size_t page_ = 0;
     Metrics metrics_;
 };
 } // namespace openvault

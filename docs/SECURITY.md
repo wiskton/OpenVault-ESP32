@@ -1,21 +1,81 @@
-# Limites desta versão
+# Modelo de segurança e limites — 0.2.0
 
-Esta é uma base de interface e diagnóstico, sem material criptográfico. Os menus
-não criam nem importam carteiras. Não há seed, PIN, assinatura ou cofre persistente.
-A compilação inclui `OPENVAULT_DEMO_ONLY=1`; isso identifica o marco e não é uma
-fronteira de segurança contra modificações futuras.
+Esta versão implementa operações de carteira; não é uma carteira auditada para
+custódia de fundos. Testes funcionais não demonstram resistência a invasão física,
+side channels ou firmware malicioso.
 
-Wi-Fi e Bluetooth são desligados em software no boot. Isso não constitui isolamento
-físico. USB continua disponível para desenvolvimento. A placa tem memória e portas
-de depuração de um dispositivo de uso geral, sem proteção auditada para custódia.
+## Chaves e entropia
 
-Antes de qualquer persistência: definir ameaça de extração física, downgrade,
-brute force offline de PIN, perda de energia durante escrita, firmware malicioso,
-vazamento em logs/heap e recuperação após perda do aparelho. Um PIN curto e AEAD
-sozinhos não impedem brute force após extração da memória. Flash encryption, secure
-boot e eFuses precisam de plano de recuperação e teste em placa descartável.
+BIP39 inglês (12/24 palavras), passphrase vazia, BIP32 e BIP84 são realizados pela
+libwally-core fixada em `374df231d05410a31d605b31c1cc5256581381d7` e seu secp256k1-zkp.
+A fonte de entropia não-RF é habilitada com `bootloader_random_enable`, usada por
+`esp_fill_random` e desligada após a coleta. Não há operação concorrente de rádio,
+microfone, alto-falante, I2S ou leitura de bateria ADC durante essa coleta. Wi-Fi e
+Bluetooth são desligados no boot. Isso não remove fisicamente os rádios.
 
-Não gerar seeds com PRNG de demonstração. No ESP32, estudar os requisitos da fonte
-de entropia do SDK com os rádios desativados antes de habilitar geração BIP39.
-Toda futura assinatura deve validar rede e revisar valores, destinatários, troco e
-taxa; testes de happy path não equivalem a auditoria.
+Os buffers próprios de entropia, chaves estendidas, PIN e frase de importação são
+sobrescritos ao encerrar seu uso. Isso é uma medida de redução de exposição, não
+uma prova de que não exista cópia transitória em stack, bibliotecas ou hardware.
+Não há canal USB para importar/exportar seed ou PIN; recuperação é feita na tela.
+
+## Cofre
+
+Um único blob NVS `openvault/vault`, de 120 bytes, contém:
+
+- versão `OVW1` e custo KDF fixado;
+- salt aleatório de 16 bytes e IV aleatório de 16 bytes;
+- rede, tamanho da entropia e entropia protegidos por AES-256-CBC/PKCS#7;
+- HMAC-SHA256 de todo o cabeçalho e ciphertext (Encrypt-then-MAC).
+
+PBKDF2-HMAC-SHA512, 100.000 iterações, produz 64 bytes divididos em chaves de
+cifragem e autenticação independentes. O MAC é conferido antes de decifrar.
+O PIN tem 8 dígitos e deve ser confirmado ao salvar. Erros de autenticação não
+revelam se a falha veio de PIN ou adulteração. Há espera após cinco erros, com
+contador NVS preservado após reinício.
+
+Um atacante com acesso à flash pode contornar limites de tentativas de firmware
+e testar PINs offline. Oito dígitos não substituem um segredo de alta entropia.
+Secure boot, flash encryption, anti-rollback e bloqueio de JTAG **não estão ativados**.
+Não há secure element. O backup integral original também não contém eFuses.
+Remover o cofre não apaga seguramente cópias antigas deixadas pelo wear leveling
+NVS; a seed de uma carteira apagada deve ser considerada possivelmente recuperável
+por análise física da flash. Nenhum apagamento de eFuses é feito por este projeto.
+
+## Assinatura
+
+A política aceita apenas PSBT v0 com entradas P2WPKH, SIGHASH_ALL e caminhos BIP84
+da própria conta 0. A transação anterior completa é exigida e seu txid é conferido;
+o script deve coincidir com a chave derivada. Um witness_utxo divergente é rejeitado.
+Quando ausente, o witness_utxo é reconstruído a partir da transação anterior validada
+para que o cálculo de assinatura utilize BIP143.
+
+Saídas desconhecidas são rejeitadas. Troco só é reconhecido após derivar a chave
+e comparar o script localmente. A taxa é calculada por entradas menos saídas;
+underflow, valores fora da faixa e taxas acima da política são rejeitados.
+Todos os destinatários, valores, rede, taxa, versão e locktime passam pela revisão
+na tela. A confirmação exige pressionar e segurar A em uma tela separada.
+Não há assinatura automática por comando USB nem transmissão de transações.
+
+O computador pode negar serviço, apresentar informações falsas ou enviar PSBTs
+maliciosas; a proteção depende de conferir **todos os caracteres** dos endereços
+na tela confiável. A revisão não prova inclusão dos UTXOs na cadeia nem saldo atual.
+O arquivo em revisão é mantido separado e não pode ser substituído pela USB durante
+a confirmação. Há limites de tamanho, entradas, saídas, caminhos e índices.
+
+## Ainda fora do escopo implementado
+
+Câmera/microSD, QR multipartes de PSBT, multisig, Taproot, PSBT v2, passphrase BIP39,
+autenticidade verificável do firmware e auditoria independente. Não confiar fundos
+com base somente no sucesso dos testes automatizados ou na descrição dos recursos.
+
+## Painel local — 0.3.0
+
+Servidor limitado a 127.0.0.1. A API exige token aleatório por execução e valida
+Host/Origin/Sec-Fetch-Site; CSP local, sem dependências remotas, sem framing.
+A lista de arquivos estáticos é fechada. Não existem rotas de seed, PIN, criação,
+importação ou remoção do cofre. Dados públicos/PSBTs são mantidos em RAM até
+reiniciar/desconectar; exportações só são gravadas quando o usuário baixa arquivos.
+Endereço/xpub e mudanças de brilho exigem botões da placa. A assinatura mantém
+as mesmas validações e revisão física do protocolo USB. Um processo malicioso no
+mesmo computador ainda pode acessar a USB/painel; loopback não protege contra
+comprometimento local. A xpub revela a conta e deve ser tratada como dado privado.

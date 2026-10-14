@@ -9,3 +9,9 @@ artifacts/*.elf
 *.log
 .env
 secrets/
+backups/
+
+.deps/
+
+*.psbt
+companion-output/

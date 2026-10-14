@@ -1,9 +1,7 @@
-# Firmware do protótipo 0.1.0
+# Firmware local
 
-`OpenVault-ESP32-v0.1.0.bin` é uma cópia local da aplicação compilada; o binário
-não é versionado. `SHA256SUMS` registra a imagem validada. Recompile pelo README
-para gerar novamente o firmware.
-
-Este arquivo não inclui bootloader ou tabela de partições e não deve ser gravado
-isoladamente no endereço zero. Use `scripts/flash.sh` para o upload completo.
-É apenas uma interface demonstrativa, sem funções de carteira.
+OpenVault-ESP32-v0.3.0.bin é a aplicação atual, com carteira funcional e painel USB.
+Binaries são ignorados pelo Git; SHA256SUMS registra as imagens locais.
+Recompile pelo README. Use scripts/flash.sh para gravar os endereços corretos;
+o binário de aplicação não deve ser instalado isoladamente no endereço zero.
+A versão 0.1.0 é somente o protótipo histórico de interface.

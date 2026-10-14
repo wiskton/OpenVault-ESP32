@@ -6,10 +6,13 @@ void render(const openvault::App& app) {
     const auto view = app.view();
     std::cout << "\n+----------------------------------------+\n" << view.title << " | DEMO\n";
     if (app.screen() == openvault::Screen::Menu) {
-        for (std::size_t i = 0; i < app.menu_size; ++i)
+        for (std::size_t i = (app.selected() / 3) * 3; i < (app.selected() / 3) * 3 + 3; ++i)
             std::cout << (i == app.selected() ? "> " : "  ") << app.menu_label(i) << '\n';
     } else {
-        for (auto line : view.lines) if (*line) std::cout << line << '\n';
+        for (std::size_t row = 0; row < openvault::App::lines_per_page; ++row) {
+            const auto i = app.page() * openvault::App::lines_per_page + row;
+            if (i < view.lines.size() && *view.lines[i]) std::cout << view.lines[i] << '\n';
+        }
         if (app.screen() == openvault::Screen::Diagnostics)
             std::cout << "A:" << app.metrics().select_presses << " B:" << app.metrics().next_presses << " Bateria: simulada\n";
     }
