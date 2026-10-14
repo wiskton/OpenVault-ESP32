@@ -1,4 +1,5 @@
 import importlib.util,json,http.client,threading,unittest
+from unittest.mock import patch
 from pathlib import Path
 spec=importlib.util.spec_from_file_location('web',Path(__file__).resolve().parents[1]/'companion/web_server.py')
 web=importlib.util.module_from_spec(spec);spec.loader.exec_module(web)
@@ -100,6 +101,23 @@ class WebTests(unittest.TestCase):
             b.line('WALLET_DELETED 1');self.assertFalse(b.snapshot()['saved']);self.assertEqual(b.snapshot()['slots'],'10000')
             for key in ('address','xpub','signed','fingerprint','network'):self.assertIsNone(b.snapshot()[key])
         finally:b.running=False;b.worker.join(timeout=2)
+    def test_usb_hotplug_and_manual_disconnect(self):
+        b=web.Bridge(auto=False);b.running=False;b.worker.join(timeout=2)
+        try:
+            b.auto=True
+            with patch.object(web,'ports',return_value=[]):b.discover_port();self.assertIsNone(b.port)
+            with patch.object(web,'ports',return_value=[{'path':'/dev/test-acm0'}]):b.discover_port();self.assertEqual(b.port,'/dev/test-acm0')
+            with patch.object(web,'ports',return_value=[]):b.discover_port();self.assertIsNone(b.port)
+            with patch.object(web,'ports',return_value=[{'path':'/dev/test-acm1'}]):b.discover_port();self.assertEqual(b.port,'/dev/test-acm1')
+            b.disconnect()
+            with patch.object(web,'ports',return_value=[{'path':'/dev/test-acm1'}]):b.discover_port();self.assertIsNone(b.port)
+            b.auto=True
+            with patch.object(web,'ports',return_value=[{'path':'/dev/test-acm1'},{'path':'/dev/test-acm2'}]):b.discover_port();self.assertIsNone(b.port)
+        finally:b.reset_connection()
+    def test_usb_model_filter(self):
+        from types import SimpleNamespace
+        with patch.object(web.list_ports,'comports',return_value=[SimpleNamespace(vid=0x1a86,pid=0x55d4,device='/dev/ttyACM0',description='Correct'),SimpleNamespace(vid=0x1a86,pid=0x7523,device='/dev/ttyUSB0',description='Other')]):
+            self.assertEqual([p['path'] for p in web.ports()],['/dev/ttyACM0'])
     def test_wallet_names(self):
         for name in ['', ' Name','Name ', 'Nome\nLOCK','<script>','a'*19,'João']:
             self.assertEqual(self.request('/api/rename-wallet','POST',{'name':name})[0],400)

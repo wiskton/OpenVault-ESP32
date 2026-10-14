@@ -63,3 +63,8 @@ sem interação; bloqueio das carteiras salvas permanece 90s. Modelo documentado
 0.8.0 instalada: exclusão pelo painel com modal de recuperação, vínculo ao slot
 ativo desbloqueado e confirmação final na placa. Não apagar carteiras reais em QA.
 Instalação concluída após a placa ficar ociosa; verificar docs/VALIDATION.md.
+
+Ativação USB Linux: scripts/install-usb.sh configura serviço de usuário e regra
+udev (exige autenticação administrativa). Reconexão automática no servidor,
+inclusive chegada da placa após o boot e mudança de porta; ver VALIDATION.md para
+estado da instalação e teste físico. Não altera firmware/cofres.

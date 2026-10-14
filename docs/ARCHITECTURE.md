@@ -92,3 +92,12 @@ WALLET_DELETED <slot> após sucesso. B emite CANCELED. A ponte aceita o evento a
 para o slot ativo e limpa seus metadados públicos. O modal usa dialog nativo, foco
 inicial em Manter carteira, checkbox e contexto capturado para impedir confirmação
 após mudança de carteira. A API web nunca apaga diretamente dados NVS.
+
+## Ativação USB Linux
+
+Regra udev 70-openvault.rules (antes de seat-late) combina VID/PID 1a86:55d4,
+TAG uaccess/systemd e SYSTEMD_USER_WANTS=openvault-panel.service. O servidor mantém
+privilégios do usuário e loopback. O instalador de sistema somente copia a regra,
+recarrega udev e reaplica eventos aos dispositivos compatíveis existentes.
+A ponte redescobre portas a cada segundo e respeita o desligamento manual da UI.
+Filtro Python e regra usam o mesmo VID/PID. Não há reinício de firmware ou NVS.

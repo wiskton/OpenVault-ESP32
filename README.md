@@ -276,3 +276,22 @@ enviar o pedido. O pedido é rejeitado se outra carteira estiver ativa ou bloque
 Somente o espaço ativo é removido; os outros permanecem. Excluir não movimenta
 Bitcoin nem invalida a seed. Recuperar acesso depende das palavras, não do PIN ou
 JSON de consulta. Remoção NVS não é apagamento físico seguro contra análise da flash.
+
+## Iniciar automaticamente ao conectar USB (Linux)
+
+Execute `./scripts/install-usb.sh` na sua sessão de usuário. O instalador configura
+o serviço de usuário e solicita autenticação administrativa uma vez para instalar
+`config/udev/70-openvault.rules`. A regra concede acesso ao usuário da sessão local
+ativa e aciona openvault-panel.service ao conectar a ponte USB 1a86:55d4 do PLUS2.
+Não utiliza permissão global 0666 nem executa o painel como root.
+
+O painel continua apenas em http://127.0.0.1:8765 e também inicia no login. Se o
+servidor já estiver rodando sem placa, ele detecta a chegada da USB; se a porta
+mudar ao reconectar, ele a redescobre. Com várias placas compatíveis, selecione a
+porta manualmente. Desconectar USB na interface desabilita a reconexão automática
+até clicar em Conectar novamente. Desconectar o cabo não encerra o painel.
+A concessão uaccess exige sessão local ativa; não cobre login SSH/headless.
+
+Para remover a regra: `sudo rm /etc/udev/rules.d/70-openvault.rules` e
+`sudo udevadm control --reload-rules`. O serviço pode ser desabilitado conforme
+as instruções anteriores. Não coloque seeds/PINs em regras, argumentos ou unidades.

@@ -131,3 +131,11 @@ carteira durante a confirmação é rejeitada. No navegador, mudar slot, fingerp
 bloqueio ou conexão invalida o modal. CANCELED preserva o cofre; WALLET_DELETED limpa
 endereço/xpub/PSBT em RAM e libera o espaço. Outros cofres não são removidos.
 Isso não equivale a secure erase (wear leveling NVS continua sendo uma limitação).
+
+## Acesso USB permanente
+
+A regra Linux usa uaccess para acesso da sessão local ativa, restrito ao modelo
+USB 1a86:55d4; não identifica criptograficamente um dispositivo nem sua autenticidade.
+O servidor não roda como root, não abre portas da rede local e não envia segredos
+a serviços externos. O PIN mantém o modelo local/USB documentado na versão 0.7.
+O hardware mantém confirmações físicas para ações sensíveis após reconectar.

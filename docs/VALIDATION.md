@@ -190,3 +190,20 @@ consulta posterior confirmou flow:idle/pending vazio; foi então instalado o fir
 O painel confirmou USB conectada, versão 0.8.0, flow:idle e espaço ativo sem cofre.
 Nenhum DELETE foi solicitado ao aparelho e nenhuma carteira real foi excluída.
 A aplicação exportada localmente é ignorada no Git; só seu digest é versionado.
+
+## Inicialização e reconexão USB no Linux
+
+- Regra 70-openvault.rules validada por udevadm verify (1 sucesso, 0 falhas).
+- Quatorze testes HTTP/ponte aprovados, incluindo chegada da USB após iniciar o
+  servidor, desconexão, mudança de porta, vários aparelhos e desconexão manual.
+  Dois testes de transporte e quatro de proteção do Git passaram.
+- Instalação da regra administrativa via pkexec concluída pelo usuário. udev
+  confirmou SYSTEMD_USER_WANTS=openvault-panel.service e tags systemd/uaccess/seat.
+  Acesso de leitura/escrita à ttyACM0 confirmado sem setfacl manual.
+- Serviço de usuário reiniciado com detecção automática; HTTP confirmou USB
+  conectada, firmware 0.8.0 e flow:idle. Sem alteração de firmware ou cofres.
+
+A placa já estava conectada quando a regra foi instalada. A ativação por um novo
+plug físico não foi simulada: systemd processa WANTS quando o dispositivo passa a
+ativo, e não ao adicionar a propriedade a um dispositivo já ativo. O próximo
+replug físico é o teste final desse evento; serviço já está ativo na sessão atual.

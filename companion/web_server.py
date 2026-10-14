@@ -10,7 +10,7 @@ WEB=Path(__file__).resolve().parent/'web'
 TOKEN=secrets.token_hex(32)
 
 def ports():
-    return [{'path':p.device,'label':p.description} for p in list_ports.comports() if p.vid==0x1a86 and ('ttyACM' in p.device or 'ttyUSB' in p.device or p.device.startswith('COM'))]
+    return [{'path':p.device,'label':p.description} for p in list_ports.comports() if p.vid==0x1a86 and p.pid==0x55d4 and ('ttyACM' in p.device or 'ttyUSB' in p.device or p.device.startswith('COM'))]
 
 def public_wallet_export(state):
     xpub=state.get('xpub');slot=state.get('wallet');network=state.get('network')
@@ -24,7 +24,7 @@ def public_wallet_export(state):
 class Bridge:
     def __init__(self,auto=True):
         self.lock=threading.RLock();self.commands=queue.Queue();self.port=None;self.active_port=None
-        self.connection=None;self.running=True
+        self.connection=None;self.running=True;self.auto=auto
         self.data={'connected':False,'port':None,'saved':None,'unlocked':False,'network':None,'fingerprint':None,'address':None,'xpub':None,'signed':None,'pending':None,'message':'Conecte o dispositivo pela USB.','brightness':100,'version':None,'flow':'idle','wallet':None,'slots':'00000','names':[f'Carteira {i+1}' for i in range(5)],'word':0,'words':0}
         found=ports()
         if auto and len(found)==1:self.port=found[0]['path']
@@ -33,9 +33,15 @@ class Bridge:
         with self.lock:return dict(self.data)
     def connect(self,path):
         if path not in [p['path'] for p in ports()]:raise ValueError('Porta USB nao identificada como dispositivo compativel.')
-        with self.lock:self.port=path
+        with self.lock:self.port=path;self.auto=True
     def disconnect(self):
-        with self.lock:self.port=None
+        with self.lock:self.port=None;self.auto=False
+    def discover_port(self):
+        with self.lock:
+            if not self.auto:return
+        found=[item['path'] for item in ports()]
+        with self.lock:
+            if self.auto and self.port not in found:self.port=found[0] if len(found)==1 else None
     def send(self,command,pending):
         with self.lock:
             if not self.data['connected']:raise ValueError('Dispositivo desconectado.')
@@ -122,8 +128,10 @@ class Bridge:
             except queue.Empty:break
         with self.lock:self.data.update(connected=False,port=None,saved=None,unlocked=False,pending=None,address=None,xpub=None,signed=None,fingerprint=None,network=None,version=None,flow="idle",wallet=None,slots="00000",names=[f"Carteira {i+1}" for i in range(5)],word=0,words=0)
     def loop(self):
-        pending=bytearray();last_poll=0
+        pending=bytearray();last_poll=0;last_discovery=0
         while self.running:
+            if time.monotonic()-last_discovery>=1:
+                self.discover_port();last_discovery=time.monotonic()
             with self.lock:port=self.port
             if port!=self.active_port:
                 self.reset_connection();pending.clear()
