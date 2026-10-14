@@ -246,3 +246,20 @@ malware local pode capturar o PIN. As palavras continuam somente no LCD. O PIN
 cifra o cofre com o formato anterior; trocar o fluxo não altera as seeds existentes.
 
 Testes da interface guiada: `node tests/test_panel.js`.
+
+## Proteção contra publicação de segredos
+
+Dados privados ficam em backups/, private/, secrets/ ou companion-output/, todos
+ignorados. Nunca versionar seed/PIN/chaves privadas, dumps da placa, exportações
+(inclusive xpub), PSBTs ou backup cifrado. .gitignore não remove dados já rastreados.
+
+Os hooks locais pre-commit/pre-push executam scripts/check_secrets.py e bloqueiam
+arquivos/padrões suspeitos sem imprimir seus valores. Neste checkout estão ativos.
+Após clonar em outro local: `git config --local core.hooksPath .githooks`.
+Antes de publicar, rode `python3 scripts/check_secrets.py --history` e revise os
+arquivos staged. O detector é heurístico e os hooks podem ser desabilitados: não
+há garantia de detectar todo segredo. Se houver exposição, apagar o arquivo do
+commit atual não remove o histórico; seeds expostas devem ser consideradas perdidas.
+O dicionário BIP39 em scripts/data é público, com hash fixado no detector; licença
+libwally em docs/licenses/libwally-LICENSE.txt. Vetores públicos de testes não são
+carteiras para uso real.

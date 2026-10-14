@@ -22,3 +22,10 @@ Web CREATE starts physical authorization only; seed must not enter serial/HTTP.
 User requested web PIN controls in 0.7: PIN may transit authenticated loopback HTTP
 and USB in volatile memory, without logging/storage/echo. Saving/unlocking with a web
 PIN requires a separate physical authorization. Never inspect real user PIN fields.
+
+User requires no sensitive wallet data in Git. Run python3 scripts/check_secrets.py
+and --history before any push. Never bypass the local pre-commit/pre-push hooks.
+Treat seeds, private keys, PINs, wallet exports/xpubs, PSBTs and flash/NVS backups as
+private even when encrypted. Ignore rules do not protect already tracked files.
+Only the explicitly known public test vectors belong in tests. Scanner is heuristic:
+inspect staged paths as well. Never print matched values or read the user's secrets.

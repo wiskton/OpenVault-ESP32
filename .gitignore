@@ -15,3 +15,27 @@ backups/
 
 *.psbt
 companion-output/
+
+# Private wallet data, exports and credentials (never commit, even encrypted).
+private/
+local-data/
+.env.*
+!.env.example
+*.bin
+*.elf
+*.dump
+*.nvs
+*.key
+*.pem
+*.p12
+*.pfx
+*.keystore
+*.hex
+*watch-only*.json
+openvault-*-consulta.json
+*wallet-backup*
+*seed*.txt
+*seed*.json
+*mnemonic*.txt
+*mnemonic*.json
+*pin*.txt
