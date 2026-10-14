@@ -1,0 +1,11 @@
+.venv/
+.pio/
+.platformio/
+build/
+__pycache__/
+*.pyc
+artifacts/*.bin
+artifacts/*.elf
+*.log
+.env
+secrets/
