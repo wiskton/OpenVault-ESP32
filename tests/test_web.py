@@ -5,6 +5,7 @@ web=importlib.util.module_from_spec(spec);spec.loader.exec_module(web)
 class FakeBridge:
     def __init__(self):self.calls=[];self.saved=False
     def continue_flow(self,*args):self.calls.append(args)
+    def request_delete(self,slot):self.calls.append(("DELETE",slot))
     def snapshot(self):return {'connected':True,'address':None,'saved':self.saved}
     def send(self,*args):self.calls.append(args)
 class WebTests(unittest.TestCase):
@@ -79,6 +80,25 @@ class WebTests(unittest.TestCase):
             b.data['flow']='set-pin';b.continue_flow('SET_PIN 42687359',{'set-pin'})
             self.assertEqual(b.snapshot()['flow'],'confirm-web-pin');self.assertNotIn('42687359',json.dumps(b.snapshot()))
             with self.assertRaises(ValueError):b.continue_flow('SET_PIN 58764291',{'set-pin'})
+        finally:b.running=False;b.worker.join(timeout=2)
+    def test_delete_confirmation_and_slot_guards(self):
+        for body in [{},{'slot':0,'confirmation':'DELETE'},{'slot':0,'backup_acknowledged':True}]:
+            self.assertEqual(self.request('/api/delete-wallet','POST',body)[0],400)
+        self.assertEqual(self.request('/api/delete-wallet','POST',{'slot':0,'confirmation':'DELETE','backup_acknowledged':True})[0],200)
+        self.assertEqual(self.server.bridge.calls[-1],('DELETE',0))
+        b=web.Bridge(auto=False)
+        try:
+            b.data.update(connected=True,saved=True,unlocked=True,flow='idle',wallet=1,slots='11000',fingerprint='public-fixture',address={'value':'old'},xpub={'value':'old'},signed='old')
+            for invalid in [True,-1,0,5,'1']:
+                with self.assertRaises(ValueError):b.request_delete(invalid)
+            b.data['unlocked']=False
+            with self.assertRaises(ValueError):b.request_delete(1)
+            b.data['unlocked']=True;b.request_delete(1)
+            self.assertEqual(b.commands.get_nowait(),'DELETE 1');self.assertTrue(b.snapshot()['saved'])
+            b.line('CANCELED');self.assertTrue(b.snapshot()['saved']);self.assertIsNone(b.snapshot()['pending'])
+            b.line('WALLET_DELETED 0');self.assertTrue(b.snapshot()['saved'])
+            b.line('WALLET_DELETED 1');self.assertFalse(b.snapshot()['saved']);self.assertEqual(b.snapshot()['slots'],'10000')
+            for key in ('address','xpub','signed','fingerprint','network'):self.assertIsNone(b.snapshot()[key])
         finally:b.running=False;b.worker.join(timeout=2)
     def test_wallet_names(self):
         for name in ['', ' Name','Name ', 'Nome\nLOCK','<script>','a'*19,'João']:

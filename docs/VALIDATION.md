@@ -162,3 +162,21 @@ A navegação de palavras no LCD, envio de PIN real e hold A para salvar/desbloq
 precisam da participação física do usuário. Não ler/fotografar/preencher seu PIN
 ou palavras como parte de QA. A mudança de exposição do PIN ao host está descrita
 em SECURITY.md; a seed continua no dispositivo.
+
+## Exclusão com modal — 0.8.0 (instalação pendente)
+
+- Doze testes HTTP passaram: aviso/confirmacao, slot/tipo inválido, bloqueio,
+  cancelamento, sucesso e remoção de cache apenas da carteira correspondente.
+- Node test_panel.js passou: modal desabilita confirmar até reconhecer aviso,
+  identifica a carteira, cancela ao trocar o contexto e fecha por Manter carteira.
+- Núcleo C++/Python/OpenSSL passou com guardas de exclusão (slot, estado salvo,
+  desbloqueio e tela ociosa) e políticas anteriores. Nenhuma carteira real usada.
+- Build PlatformIO SUCCESS: RAM 60.540 bytes; flash 1.239.893 bytes.
+- QA do modal em servidor isolado 127.0.0.1:8766, sem conexão serial e com carteira
+  simulada. Navegador confirmou conteúdo, foco em Manter carteira, checkbox que
+  libera Continuar na placa e cancelamento. Captura de imagem não disponível.
+  Preview encerrado; nenhum pedido de exclusão foi enviado à placa real.
+
+A placa real permaneceu em flow:switch/pending:switch nas duas consultas feitas.
+Não foi gravado firmware nem interrompida a troca. Usuário foi solicitado a
+concluir/cancelar a troca para permitir a instalação. Não alegar versão 0.8 instalada.

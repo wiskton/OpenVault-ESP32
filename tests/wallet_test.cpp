@@ -18,6 +18,9 @@ int main(int argc,char**argv){
  assert(parseCreate("CREATE BTC 24").valid&&parseCreate("CREATE BTC 24").mainnet);
  assert(parseCreate("CREATE TEST 12").valid&&!parseCreate("CREATE TEST 12").mainnet);
  for(const auto& bad:{"CREATE BTC 0","CREATE TEST 13","CREATE BTC 12 extra","CREATE MAIN 12","CREATE BTC 12\nLOCK"})assert(!parseCreate(bad).valid);
+ assert(allowDelete(2,2,true,true,true));
+ assert(!allowDelete(1,2,true,true,true));assert(!allowDelete(5,5,true,true,true));
+ assert(!allowDelete(2,2,false,true,true));assert(!allowDelete(2,2,true,false,true));assert(!allowDelete(2,2,true,true,false));
  assert(allowCreate(false,false,true));
  assert(!allowCreate(true,false,true));assert(!allowCreate(false,true,true));assert(!allowCreate(false,false,false));
  assert(wally_init(0)==WALLY_OK);

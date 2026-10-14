@@ -43,6 +43,11 @@ class Bridge:
             self.data.update(pending=pending,message='Aguardando confirmacao nos botoes do dispositivo.')
             if pending=='sign':self.data['signed']=None
             self.commands.put(command)
+    def request_delete(self,slot):
+        with self.lock:
+            if type(slot) is not int or not 0<=slot<5 or slot!=self.data['wallet']:raise ValueError('A carteira ativa mudou. Abra a confirmacao novamente.')
+            if not self.data['saved'] or not self.data['unlocked'] or self.data['flow']!='idle':raise ValueError('Selecione e desbloqueie a carteira antes de excluir.')
+            self.send('DELETE '+str(slot),'delete')
     def continue_flow(self,command,allowed_flows):
         with self.lock:
             if not self.data['connected'] or self.data['flow'] not in allowed_flows:raise ValueError('Esta etapa nao esta disponivel. Confira o progresso no painel.')
@@ -92,6 +97,12 @@ class Bridge:
                 except ValueError:ok=False
                 if ok:self.data.update(signed=text,pending=None,message='PSBT assinada. Baixe o arquivo; nada foi transmitido a rede.')
                 else:self.data.update(pending=None,message='Resposta de assinatura invalida.')
+            elif line.startswith('WALLET_DELETED '):
+                slot=line.split()[1]
+                if slot.isdigit() and int(slot)==self.data['wallet']:
+                    self.data.update(pending=None,saved=False,unlocked=False,address=None,xpub=None,signed=None,network=None,fingerprint=None,flow='idle',message='Carteira excluida do dispositivo. O espaco esta disponivel.')
+                    index=int(slot);names=list(self.data['names']);names[index]=f'Carteira {index+1}';self.data['names']=names
+                    slots=list(self.data['slots']);slots[index]='0';self.data['slots']=''.join(slots)
             elif line=='WALLET_SELECTED':self.data.update(pending=None,address=None,xpub=None,signed=None,fingerprint=None,network=None,unlocked=False,saved=None,message='Carteira selecionada. Desbloqueie para operar ou crie se estiver vazia.')
             elif line=='WALLET_SAVED':self.data.update(saved=True,unlocked=True,pending=None,message='Carteira salva na placa. Guarde as palavras de recuperacao.')
             elif line=='UNLOCKED':self.data.update(unlocked=True,pending=None,message='Carteira desbloqueada. Escolha uma operacao no painel.')
@@ -201,6 +212,9 @@ class Handler(BaseHTTPRequestHandler):
                 if not unlocking and pin!=body.get('confirmation'):raise ValueError('Os PINs nao conferem')
                 bridge.continue_flow(('UNLOCK_PIN ' if unlocking else 'SET_PIN ')+pin,{'unlock'} if unlocking else {'set-pin'})
                 pin=None;body.clear()
+            elif self.path=='/api/delete-wallet':
+                if body.get('confirmation')!='DELETE' or body.get('backup_acknowledged') is not True:raise ValueError('Confirme a exclusao e o aviso de recuperacao no modal.')
+                bridge.request_delete(body.get('slot'))
             elif self.path=='/api/rename-wallet':
                 name=body.get('name')
                 if not isinstance(name,str) or not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9 _-]{0,17}',name) or name.endswith(' '):raise ValueError('Use 1 a 18 letras sem acento, numeros, espacos, - ou _')

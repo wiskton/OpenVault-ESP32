@@ -120,3 +120,14 @@ continua cifrado e autenticado com o PIN de 8 dígitos. A fonte de entropia e as
 palavras não mudam. O assistente nunca deve preencher/ler um PIN real do usuário.
 A janela de criação foi ampliada a 5 minutos sem interação para permitir anotar
 as palavras; carteiras salvas mantêm o bloqueio por inatividade de 90 segundos.
+
+## Exclusão por pedido web 0.8
+
+POST /api/delete-wallet exige sessão, confirmação explícita e reconhecimento do
+aviso de recuperação. A ponte verifica slot ativo, desbloqueio, estado ocioso e
+pedido concorrente. DELETE <slot> repete as verificações no firmware e abre somente
+ConfirmErase; nenhuma escrita destrutiva ocorre sem hold A na placa. A troca de
+carteira durante a confirmação é rejeitada. No navegador, mudar slot, fingerprint,
+bloqueio ou conexão invalida o modal. CANCELED preserva o cofre; WALLET_DELETED limpa
+endereço/xpub/PSBT em RAM e libera o espaço. Outros cofres não são removidos.
+Isso não equivale a secure erase (wear leveling NVS continua sendo uma limitação).

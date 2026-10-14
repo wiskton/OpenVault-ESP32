@@ -83,3 +83,12 @@ ConfirmWebPin. Hold A executa persist/finishPin, B cancela e sobrescreve buffers
 STATUS acrescenta word/words (somente índices). A ponte permite continuação do
 pedido de criação/troca/desbloqueio apenas no flow adequado. Comandos de outras
 operações continuam bloqueados durante o pedido. Estado/erros não contêm PIN.
+
+## Exclusão 0.8
+
+DELETE 0..4, vinculado ao slot ativo e permitido somente quando salvo/desbloqueado/
+ocioso, entra em ConfirmErase. Hold A executa a remoção existente e emite
+WALLET_DELETED <slot> após sucesso. B emite CANCELED. A ponte aceita o evento apenas
+para o slot ativo e limpa seus metadados públicos. O modal usa dialog nativo, foco
+inicial em Manter carteira, checkbox e contexto capturado para impedir confirmação
+após mudança de carteira. A API web nunca apaga diretamente dados NVS.

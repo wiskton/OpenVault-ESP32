@@ -263,3 +263,16 @@ commit atual não remove o histórico; seeds expostas devem ser consideradas per
 O dicionário BIP39 em scripts/data é público, com hash fixado no detector; licença
 libwally em docs/licenses/libwally-LICENSE.txt. Vetores públicos de testes não são
 carteiras para uso real.
+
+## Excluir carteira pelo painel — 0.8.0
+
+Requer firmware 0.8.0 instalado. Selecione e desbloqueie a carteira, abra a visão
+geral e clique em Excluir carteira. O modal identifica nome, espaço e rede; leia
+o aviso sobre recuperação e marque que compreende a necessidade das palavras.
+Continuar na placa envia somente um pedido. Confira nome/número no LCD e segure
+A para remover o cofre; B cancela. Manter carteira, X e Escape fecham o modal sem
+enviar o pedido. O pedido é rejeitado se outra carteira estiver ativa ou bloqueada.
+
+Somente o espaço ativo é removido; os outros permanecem. Excluir não movimenta
+Bitcoin nem invalida a seed. Recuperar acesso depende das palavras, não do PIN ou
+JSON de consulta. Remoção NVS não é apagamento físico seguro contra análise da flash.

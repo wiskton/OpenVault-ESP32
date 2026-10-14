@@ -16,5 +16,6 @@ inline CreateRequest parseCreate(const std::string& command){
   if(command=="CREATE "+network+" "+std::to_string(count)){out.valid=true;out.mainnet=network=="BTC";out.words=count;}
  return out;
 }
+inline bool allowDelete(unsigned requested,unsigned active,bool saved,bool unlocked,bool idle){return requested<walletSlots&&requested==active&&saved&&unlocked&&idle;}
 inline bool allowCreate(bool saved,bool unlocked,bool idle){return !saved&&!unlocked&&idle;}
 }

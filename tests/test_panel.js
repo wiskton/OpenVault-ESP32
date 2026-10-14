@@ -4,6 +4,8 @@ const html=fs.readFileSync('companion/web/index.html','utf8'),elements=new Map()
 class Element{
  constructor(){this.value='';this.hidden=false;this.disabled=false;this.required=false;this.dataset={};this.textContent='';this.handlers={};this.classList={toggle(){}};}
  addEventListener(event,handler){this.handlers[event]=handler;}
+ showModal(){this.open=true;}
+ close(){this.open=false;this.handlers.close?.();}
  replaceChildren(){}
  add(option){if(this.value==='')this.value=option.value;}
 }
@@ -24,5 +26,12 @@ const el=id=>elements.get(id);
  state.flow='unlock';await sandbox.render(state);assert.equal(el('pinConfirmationRow').hidden,true);assert.equal(el('webPinConfirm').required,false);
  el('webPin').value='42687359';state.flow='confirm-web-pin';await sandbox.render(state);
  assert.equal(el('webPinForm').hidden,true);assert.equal(el('webPin').value,'');assert.match(el('setupStepHelp').textContent,/Segure A/);
+ state.version='0.8.0';state.saved=true;state.unlocked=true;state.flow='idle';state.pending=null;state.fingerprint='public-test';await sandbox.render(state);
+ assert.equal(el('openDeleteWallet').disabled,false);el('openDeleteWallet').handlers.click();
+ assert.equal(el('deleteWalletModal').open,true);assert.equal(el('deleteWalletIdentity').textContent,'Pessoal');assert.equal(el('confirmDeleteWallet').disabled,true);
+ el('deleteBackupAck').checked=true;el('deleteBackupAck').handlers.change();assert.equal(el('confirmDeleteWallet').disabled,false);
+ state.wallet=1;await sandbox.render(state);assert.equal(el('deleteWalletModal').open,false);
+ el('openDeleteWallet').handlers.click();el('cancelDeleteModal').handlers.click();assert.equal(el('deleteWalletModal').open,false);
+ state.unlocked=false;await sandbox.render(state);assert.equal(el('openDeleteWallet').disabled,true);
  console.log('OK: etapas de backup/PIN, confirmacao, erros visiveis e limpeza dos campos.');
 })().catch(error=>{console.error(error);process.exitCode=1;});
