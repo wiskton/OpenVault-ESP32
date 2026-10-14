@@ -39,7 +39,10 @@ async function render(state){
  current=state;
  $('usbBadge').textContent=state.connected?'● USB conectada':'USB desconectada';$('usbBadge').classList.toggle('connected',state.connected);
  $('walletStatePill').textContent=!state.connected?'Aguardando USB':state.saved?(state.unlocked?'Desbloqueada':'Bloqueada'):'Sem cofre salvo';
- $('walletHeading').textContent=!state.connected?'Vamos conectar.':state.saved?(state.unlocked?'Carteira desbloqueada.':'Sua carteira está salva.'):'Crie sua carteira pelo painel.';
+ const identity=state.wallet===null||state.wallet===undefined?'Aguardando dispositivo':(state.names?.[state.wallet]||'Carteira '+(state.wallet+1));
+ $('headerWalletName').textContent=identity;
+ for(const tag of document.querySelectorAll('[data-wallet-identity]'))tag.textContent='Carteira ativa: '+identity+(state.wallet===null||state.wallet===undefined?'':' · espaço '+(state.wallet+1));
+ $('walletHeading').textContent=!state.connected?'Vamos conectar.':state.saved?identity:'Crie sua carteira pelo painel.';
  $('connectionHint').textContent=!state.connected?'Conecte o M5StickC PLUS2 pelo cabo USB-C de dados para começar.':state.saved?'Seu cofre permanece na placa. Use os botões para desbloquear e confirmar cada operação.':'Escolha a rede e clique em Criar carteira abaixo. A placa pedirá sua autorização.';
  $('setupBanner').hidden=state.saved===true;
  const supported=['0.5.0','0.6.0'].includes(state.version);
@@ -60,6 +63,7 @@ async function render(state){
  if($('walletName').dataset.slot!==String(state.wallet)){$('walletName').dataset.slot=String(state.wallet);delete $('walletName').dataset.editing;$('walletName').value=state.names?.[state.wallet]||'';}
  $('renameWallet').disabled=state.version!=='0.6.0'||!available||!state.saved||!state.unlocked;
  $('walletName').disabled=$('renameWallet').disabled;
+ $('walletNameHelp').textContent=!state.connected?'Conecte a placa para identificar suas carteiras.':!state.saved?'Crie a carteira neste espaço primeiro. Depois, dê um nome a ela aqui.':!state.unlocked?'Desbloqueie esta carteira na visão geral para editar o nome.':state.pending==='rename'?'Confira o novo nome na placa e segure A para salvar.':'Digite um nome, clique em Salvar nome na placa e confirme segurando A. O nome fica salvo no dispositivo.';
  $('pinStatus').textContent=state.saved?'PIN de 8 dígitos já configurado para esta carteira. Desbloqueie para trocar.':'O PIN / senha de 8 dígitos será criado e confirmado na placa durante a criação.';
  $('createWallet').disabled=!supported||!available||state.saved!==false;
  $('createNetwork').disabled=$('createWords').disabled=$('createWallet').disabled;
@@ -81,7 +85,7 @@ async function render(state){
  for(const id of ['requestAddress','requestXpub','overviewXpub','signButton'])$(id).disabled=!canUse;
  $('brightnessButton').disabled=!state.connected||!!state.pending;
  if(state.address){
-  $('addressValue').textContent=state.address.value;$('addressIndex').textContent='Carteira '+(state.wallet+1)+' · endereço #'+state.address.index+' · derivado e confirmado no dispositivo';
+  $('addressValue').textContent=state.address.value;$('addressIndex').textContent=identity+' · espaço '+(state.wallet+1)+' · endereço #'+state.address.index+' · derivado e confirmado no dispositivo';
   $('addressNetwork').textContent=networkName(state.address.network);$('addressNetwork').hidden=false;
   $('copyAddress').disabled=false;
   await qr(state.address.value);$('qrPlaceholder').hidden=true;$('qrImage').hidden=false;

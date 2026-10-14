@@ -7,3 +7,5 @@
 .wallet-selector{margin-bottom:26px;display:grid;grid-template-columns:1fr 1fr;gap:16px}.wallet-selector .muted{grid-column:1/-1;margin:0}.wallet-selector select{width:100%;margin-bottom:12px}@media(max-width:650px){.wallet-selector{grid-template-columns:1fr}}
 
 .wallet-name-form{display:grid;gap:10px;margin:20px 0}.wallet-name-form input{width:100%;max-width:420px;padding:13px 15px;border:1px solid #c9d7cf;border-radius:8px;font:inherit;background:#fff;color:#18372b}.wallet-name-form small{color:#617167;font-size:14px}.wallet-name-form button{justify-self:start}
+
+.wallet-selector>.wallet-name-form{grid-column:1/-1;border-top:1px solid var(--line);padding-top:18px;margin:4px 0 10px}.wallet-selector>.wallet-name-form .muted{grid-column:auto;line-height:1.6}.active-wallet-tag{display:inline-block;margin:0 0 16px;padding:9px 14px;border:1px solid #c2d6c8;border-radius:8px;background:#edf4ed;color:#244e36;font-size:15px;font-weight:650;overflow-wrap:anywhere}.breadcrumb strong{font-weight:650;color:#244e36}

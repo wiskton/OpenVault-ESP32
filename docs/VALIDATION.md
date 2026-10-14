@@ -129,3 +129,11 @@ precisam de teste humano. Não alegar validação física completa só com boot/
 Salvar nome em cofre real, autorizar exportação de uma carteira real e completar
 PIN continuam exigindo a operação física do usuário. As verificações no host e
 consulta USB não substituem esse teste. Não houve criação nem exportação de seed.
+
+## Identificação visível no painel
+
+Campo de nome movido para Suas carteiras, sempre visível com instrução para
+criar/desbloquear quando necessário. Nome ativo também aparece no cabeçalho,
+cartão e telas Receber/Transações/Dispositivo. node --check e git diff --check
+aprovados; navegador confirmou campo visível e identificação no cabeçalho e
+Dispositivo. Nenhuma alteração de firmware, seed ou cofre nesta melhoria de UI.
