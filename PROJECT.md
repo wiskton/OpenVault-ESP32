@@ -60,6 +60,6 @@ na placa antes de salvar/desbloquear. PIN passa em memória pelo host/USB sem
 cifragem de transporte; seed continua exclusiva da placa. Criação expira em 5min
 sem interação; bloqueio das carteiras salvas permanece 90s. Modelo documentado.
 
-0.8.0 em código: exclusão pelo painel com modal de recuperação, vínculo ao slot
+0.8.0 instalada: exclusão pelo painel com modal de recuperação, vínculo ao slot
 ativo desbloqueado e confirmação final na placa. Não apagar carteiras reais em QA.
-A instalação depende de a placa estar ociosa; verificar docs/VALIDATION.md.
+Instalação concluída após a placa ficar ociosa; verificar docs/VALIDATION.md.

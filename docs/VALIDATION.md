@@ -163,7 +163,7 @@ precisam da participação física do usuário. Não ler/fotografar/preencher se
 ou palavras como parte de QA. A mudança de exposição do PIN ao host está descrita
 em SECURITY.md; a seed continua no dispositivo.
 
-## Exclusão com modal — 0.8.0 (instalação pendente)
+## Exclusão com modal — preparação 0.8.0
 
 - Doze testes HTTP passaram: aviso/confirmacao, slot/tipo inválido, bloqueio,
   cancelamento, sucesso e remoção de cache apenas da carteira correspondente.
@@ -180,3 +180,13 @@ em SECURITY.md; a seed continua no dispositivo.
 A placa real permaneceu em flow:switch/pending:switch nas duas consultas feitas.
 Não foi gravado firmware nem interrompida a troca. Usuário foi solicitado a
 concluir/cancelar a troca para permitir a instalação. Não alegar versão 0.8 instalada.
+
+## Instalação e publicação 0.8.0 concluídas
+
+Após o usuário autorizar manter o repositório público, a revisão 46e065b foi enviada
+com o detector de segredos ativo (138 blobs históricos sem correspondências). A
+consulta posterior confirmou flow:idle/pending vazio; foi então instalado o firmware
+0.8.0 com pio upload. SUCCESS e hashes verificados, sem apagar NVS ou partições.
+O painel confirmou USB conectada, versão 0.8.0, flow:idle e espaço ativo sem cofre.
+Nenhum DELETE foi solicitado ao aparelho e nenhuma carteira real foi excluída.
+A aplicação exportada localmente é ignorada no Git; só seu digest é versionado.
